@@ -16,10 +16,12 @@ public class EscolasView {
 
     private BorderPane view;
     private TableView<Escola> tabela;
-    private EscolasDAO escolasDAO;
+    private EscolasDAO dao;
+    private MainFX mainApp;
 
-    public EscolasView() {
-        escolasDAO = new EscolasDAO();
+    public EscolasView(MainFX mainApp) {
+        this.mainApp = mainApp;
+        this.dao = new EscolasDAO();
         construirInterface();
         carregarDados();
     }
@@ -28,26 +30,19 @@ public class EscolasView {
         view = new BorderPane();
         view.setPadding(new Insets(20));
 
-        // --- CABEÇALHO ---
-        Label lblTitulo = new Label("🏢 Gestão de Escolas");
-        lblTitulo.setStyle("-fx-font-size: 24px; -fx-font-weight: bold;");
+        Label lblTitulo = new Label("Gestão de Escolas");
+        lblTitulo.setStyle("-fx-font-size: 22px; -fx-font-weight: bold;");
 
-        Button btnNovaEscola = new Button("+ Nova Escola");
-        btnNovaEscola.getStyleClass().add("accent"); // Classe do AtlantaFX para botão de destaque (Azul/Roxo)
+        Button btnNova = new Button("+ Cadastrar Escola");
+        btnNova.setStyle("-fx-background-color: #28a745; -fx-text-fill: white;");
+        btnNova.setOnAction(e -> abrirModalNovaEscola());
 
-        btnNovaEscola.setOnAction(e -> abrirModalNovaEscola());
-
-        HBox header = new HBox(20, lblTitulo, btnNovaEscola);
+        HBox header = new HBox(20, lblTitulo, btnNova);
         header.setAlignment(Pos.CENTER_LEFT);
         header.setPadding(new Insets(0, 0, 20, 0));
 
-        // --- TABELA ---
         tabela = new TableView<>();
         tabela.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-
-        TableColumn<Escola, String> colId = new TableColumn<>("ID");
-        colId.setCellValueFactory(new PropertyValueFactory<>("id"));
-        colId.setMaxWidth(300);
 
         TableColumn<Escola, String> colNome = new TableColumn<>("Nome da Escola");
         colNome.setCellValueFactory(new PropertyValueFactory<>("nome"));
@@ -55,47 +50,37 @@ public class EscolasView {
         TableColumn<Escola, String> colStatus = new TableColumn<>("Status");
         colStatus.setCellValueFactory(new PropertyValueFactory<>("status"));
 
-        tabela.getColumns().addAll(colId, colNome, colStatus);
+        tabela.getColumns().addAll(colNome, colStatus);
 
-        tabela.setTooltip(new Tooltip("Dê um duplo clique numa escola para ver as suas turmas"));
+        // Duplo Clique Limpo
         tabela.setRowFactory(tv -> {
             TableRow<Escola> row = new TableRow<>();
             row.setOnMouseClicked(event -> {
                 if (event.getClickCount() == 2 && (!row.isEmpty())) {
-                    Escola escolaClicada = row.getItem();
-                    MainFX.irParaTurmasDaEscola(escolaClicada);
+                    mainApp.abrirTurmas(row.getItem());
                 }
             });
             return row;
         });
 
-        VBox centro = new VBox(header, tabela);
-        view.setCenter(centro);
+        view.setCenter(new VBox(header, tabela));
     }
 
-    // Busca as escolas no Supabase e joga na tabela
     private void carregarDados() {
         tabela.getItems().clear();
-        List<Escola> escolas = escolasDAO.listarTodas();
+        List<Escola> escolas = dao.listarTodas();
         tabela.getItems().addAll(escolas);
     }
 
-    // Modal simples para inserir nova escola
     private void abrirModalNovaEscola() {
         TextInputDialog dialog = new TextInputDialog();
         dialog.setTitle("Nova Escola");
-        dialog.setHeaderText("Cadastrar Nova Escola");
-        dialog.setContentText("Nome da Instituição:");
+        dialog.setHeaderText(null);
+        dialog.setContentText("Nome da Escola:");
 
         dialog.showAndWait().ifPresent(nome -> {
-            if (!nome.trim().isEmpty()) {
-                Escola nova = new Escola(nome, "ativo");
-                if (escolasDAO.inserir(nova)) {
-                    carregarDados(); // Recarrega a tabela automaticamente!
-                } else {
-                    Alert erro = new Alert(Alert.AlertType.ERROR, "Erro ao gravar na nuvem!");
-                    erro.show();
-                }
+            if (!nome.isBlank()) {
+                if (dao.inserir(new Escola(nome, "ativo"))) carregarDados();
             }
         });
     }

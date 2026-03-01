@@ -1,6 +1,8 @@
 package app;
 
+import atlantafx.base.theme.PrimerLight;
 import core.Escola;
+import javafx.application.Application;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
@@ -9,76 +11,71 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
-public class MainFX {
+public class MainFX extends Application {
 
-    private final BorderPane root = new BorderPane();
-    private final Stage stage;
+    private BorderPane root;
+    private Stage stage;
 
-    public MainFX(Stage stage) {
-        this.stage = stage;
-    }
+    @Override
+    public void start(Stage primaryStage) {
+        this.stage = primaryStage;
+        Application.setUserAgentStylesheet(new PrimerLight().getUserAgentStylesheet());
 
-    public Scene createScene() {
+        root = new BorderPane();
 
-        root.setStyle("-fx-font-size: 15px;");
-
-        VBox sidebar = new VBox(15);
+        // --- SIDEBAR SIMPLES ---
+        VBox sidebar = new VBox(10);
         sidebar.setPadding(new Insets(20));
-        sidebar.setStyle(
-                "-fx-background-color: #f6f8fa;" +
-                        "-fx-border-color: #d0d7de;" +
-                        "-fx-border-width: 0 1 0 0;"
-        );
-        sidebar.setPrefWidth(220);
+        sidebar.setPrefWidth(200);
+        sidebar.setStyle("-fx-background-color: white; -fx-border-color: #e1e4e8; -fx-border-width: 0 1 0 0;");
 
-        Label lblLogo = new Label("OficinaAdmin");
-        lblLogo.setStyle(
-                "-fx-font-size: 20px;" +
-                        "-fx-font-weight: bold;" +
-                        "-fx-text-fill: #0969da;" +
-                        "-fx-padding: 0 0 20 0;"
-        );
+        Label title = new Label("Menu Principal");
+        title.setStyle("-fx-font-weight: bold; -fx-text-fill: #0366d6; -fx-padding: 0 0 10 0;");
 
-        Button btnEscolas = criarBotaoMenu("🏢 Escolas");
-        Button btnTurmas = criarBotaoMenu("📚 Turmas");
-        Button btnSair = criarBotaoMenu("🚪 Sair");
+        Button btnEscolas = new Button("🏢 Escolas");
+        btnEscolas.setMaxWidth(Double.MAX_VALUE);
 
-        btnEscolas.setOnAction(e ->
-                root.setCenter(new EscolasView().getView())
-        );
+        Button btnTurmas = new Button("📚 Turmas");
+        btnTurmas.setMaxWidth(Double.MAX_VALUE);
 
-        btnTurmas.setOnAction(e ->
-                root.setCenter(new TurmasView().getView())
-        );
+        Button btnSair = new Button("🚪 Sair");
+        btnSair.setMaxWidth(Double.MAX_VALUE);
+        btnSair.setStyle("-fx-text-fill: #cb2431;");
 
-        btnSair.setOnAction(e ->
-                stage.setScene(new LoginFX().createScene(stage))
-        );
-
-        sidebar.getChildren().addAll(lblLogo, btnEscolas, btnTurmas, btnSair);
+        sidebar.getChildren().addAll(title, btnEscolas, btnTurmas, btnSair);
         root.setLeft(sidebar);
 
-        root.setCenter(new EscolasView().getView());
+        // --- ROTAS (Seguras, sem státicos) ---
+        btnEscolas.setOnAction(e -> abrirEscolas());
+        btnTurmas.setOnAction(e -> abrirTurmas(null));
+        btnSair.setOnAction(e -> sair());
 
-        return new Scene(root, 1000, 650);
+        // Inicia na tela de Escolas
+        abrirEscolas();
+
+        Scene scene = new Scene(root, 1024, 768);
+        primaryStage.setScene(scene);
+        primaryStage.setTitle("Oficina Code - Backoffice");
+        primaryStage.setMaximized(true); // Abre maximizado nativamente!
+        primaryStage.show();
     }
 
-    public void irParaTurmasDaEscola(Escola escola) {
-        TurmasView telaTurmas = new TurmasView();
-        telaTurmas.selecionarEscola(escola);
-        root.setCenter(telaTurmas.getView());
+    public void abrirEscolas() {
+        root.setCenter(new EscolasView(this).getView());
     }
 
-    private Button criarBotaoMenu(String texto) {
-        Button btn = new Button(texto);
-        btn.setMaxWidth(Double.MAX_VALUE);
-        btn.setStyle(
-                "-fx-background-color: transparent;" +
-                        "-fx-text-fill: #24292f;" +
-                        "-fx-font-size: 15px;" +
-                        "-fx-alignment: CENTER-LEFT;" +
-                        "-fx-padding: 10;"
-        );
-        return btn;
+    // Passa a escola diretamente para a view de turmas se vier do duplo clique
+    public void abrirTurmas(Escola escolaSelecionada) {
+        TurmasView turmasView = new TurmasView();
+        root.setCenter(turmasView.getView());
+
+        if (escolaSelecionada != null) {
+            turmasView.selecionarEscola(escolaSelecionada);
+        }
+    }
+
+    private void sair() {
+        new LoginFX().start(new Stage());
+        stage.close();
     }
 }

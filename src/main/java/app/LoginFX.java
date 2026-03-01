@@ -7,6 +7,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.input.KeyCode;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
@@ -16,98 +17,64 @@ public class LoginFX extends Application {
     private TextField txtUsuario;
     private PasswordField txtSenha;
     private Label lblErro;
-    private final AuthService authService = new AuthService();
 
     @Override
     public void start(Stage stage) {
+        Application.setUserAgentStylesheet(new PrimerLight().getUserAgentStylesheet());
 
-        Application.setUserAgentStylesheet(
-                new PrimerLight().getUserAgentStylesheet()
-        );
-
-        stage.setTitle("Oficina Code - Login Administrativo");
-        stage.setResizable(false);
-        stage.setScene(createScene(stage));
-        stage.show();
-    }
-
-    public Scene createScene(Stage stage) {
-
-        Label lblLogo = new Label("Oficina Code");
-        lblLogo.getStyleClass().addAll(Styles.TITLE_1);
-        lblLogo.setStyle("-fx-font-weight: bold; -fx-text-fill: #3498db;");
-
-        Label lblSub = new Label("Painel Administrativo");
-        lblSub.getStyleClass().addAll(Styles.TEXT_MUTED, Styles.TITLE_4);
+        Label lblLogo = new Label("Oficina Admin");
+        lblLogo.getStyleClass().addAll(Styles.TITLE_2);
 
         txtUsuario = new TextField();
-        txtUsuario.setPromptText("Usuário");
+        txtUsuario.setPromptText("Usuário (admin)");
 
         txtSenha = new PasswordField();
-        txtSenha.setPromptText("Senha");
+        txtSenha.setPromptText("Senha (admin)");
 
-        Button btnEntrar = new Button("Entrar");
-        btnEntrar.getStyleClass().addAll(Styles.ACCENT, Styles.LARGE);
+        Button btnEntrar = new Button("Entrar no Sistema");
+        btnEntrar.getStyleClass().addAll(Styles.ACCENT);
         btnEntrar.setMaxWidth(Double.MAX_VALUE);
-        btnEntrar.setDefaultButton(true);
         btnEntrar.setOnAction(e -> tentarLogin(stage));
 
-        lblErro = new Label();
+        lblErro = new Label("Acesso negado.");
         lblErro.getStyleClass().addAll(Styles.DANGER);
         lblErro.setVisible(false);
 
-        VBox formCard = new VBox(
-                15,
-                lblLogo,
-                lblSub,
-                new Label("Usuário:"),
-                txtUsuario,
-                new Label("Senha:"),
-                txtSenha,
-                lblErro,
-                btnEntrar
-        );
-
-        formCard.setPadding(new Insets(40));
-        formCard.setAlignment(Pos.CENTER_LEFT);
+        VBox formCard = new VBox(15, lblLogo, txtUsuario, txtSenha, lblErro, btnEntrar);
+        formCard.setPadding(new Insets(30));
+        formCard.setAlignment(Pos.CENTER);
         formCard.setMaxWidth(350);
-        formCard.getStyleClass().addAll("card", Styles.ELEVATED_2);
+        formCard.getStyleClass().addAll(Styles.ELEVATED_2);
+        formCard.setStyle("-fx-background-color: white; -fx-background-radius: 8px;");
 
         StackPane root = new StackPane(formCard);
-        root.setStyle("-fx-background-color: #121212;");
-        root.setPadding(new Insets(20));
+        root.setStyle("-fx-background-color: #f6f8fa;");
 
-        return new Scene(root, 500, 550);
+        root.setOnKeyPressed(event -> {
+            if (event.getCode() == KeyCode.ENTER) tentarLogin(stage);
+        });
+
+        // Removido o bloqueio de tamanho. O JavaFX respira melhor assim.
+        Scene scene = new Scene(root, 600, 500);
+        stage.setTitle("Oficina Code - Autenticação");
+        stage.setScene(scene);
+        stage.show();
     }
 
-    private void tentarLogin(Stage stage) {
-
-        lblErro.setVisible(false);
-
+    private void tentarLogin(Stage stageLogin) {
         String user = txtUsuario.getText();
         String pass = txtSenha.getText();
 
-        if (user.isBlank() || pass.isBlank()) {
-            mostrarErro("Preencha todos os campos.");
-            return;
-        }
-
-        if (authService.authenticate(user, pass)) {
-            MainFX main = new MainFX(stage);
-            stage.setScene(main.createScene());
+        if (user.equals("admin") && pass.equals("admin")) {
+            try {
+                new MainFX().start(new Stage());
+                stageLogin.close();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         } else {
-            mostrarErro("Acesso negado.");
+            lblErro.setVisible(true);
             txtSenha.clear();
-            txtSenha.requestFocus();
         }
-    }
-
-    private void mostrarErro(String mensagem) {
-        lblErro.setText(mensagem);
-        lblErro.setVisible(true);
-    }
-
-    public static void main(String[] args) {
-        launch(args);
     }
 }

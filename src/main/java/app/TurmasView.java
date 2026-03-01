@@ -18,9 +18,9 @@ public class TurmasView {
 
     private BorderPane view;
     private TableView<Turma> tabela;
+    private ComboBox<Escola> cbEscolas;
     private TurmaDAO turmaDAO;
     private EscolasDAO escolasDAO;
-    private ComboBox<Escola> cbEscolas;
 
     public TurmasView() {
         turmaDAO = new TurmaDAO();
@@ -33,26 +33,22 @@ public class TurmasView {
         view = new BorderPane();
         view.setPadding(new Insets(20));
 
-        // --- CABEÇALHO ---
-        Label lblTitulo = new Label("📚 Gestão de Turmas");
-        lblTitulo.setStyle("-fx-font-size: 24px; -fx-font-weight: bold;");
+        Label lblTitulo = new Label("Gestão de Turmas");
+        lblTitulo.setStyle("-fx-font-size: 22px; -fx-font-weight: bold;");
 
         cbEscolas = new ComboBox<>();
         cbEscolas.setPromptText("Selecione uma Escola...");
         cbEscolas.setPrefWidth(250);
-        // Quando escolhe uma escola, carrega as turmas dela!
         cbEscolas.setOnAction(e -> carregarTurmas());
 
-        Button btnNovaTurma = new Button("+ Nova Turma");
-        btnNovaTurma.getStyleClass().add("accent");
-        btnNovaTurma.setOnAction(e -> abrirModalNovaTurma());
+        Button btnNova = new Button("+ Cadastrar Turma");
+        btnNova.setStyle("-fx-background-color: #28a745; -fx-text-fill: white;");
+        btnNova.setOnAction(e -> abrirModalNovaTurma());
 
-        // AQUI ESTÁ O "header" QUE O JAVA NÃO ESTAVA A ENCONTRAR!
-        HBox header = new HBox(20, lblTitulo, cbEscolas, btnNovaTurma);
+        HBox header = new HBox(20, lblTitulo, cbEscolas, btnNova);
         header.setAlignment(Pos.CENTER_LEFT);
         header.setPadding(new Insets(0, 0, 20, 0));
 
-        // --- TABELA ---
         tabela = new TableView<>();
         tabela.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
 
@@ -64,54 +60,44 @@ public class TurmasView {
 
         tabela.getColumns().addAll(colNome, colAno);
 
-        VBox centro = new VBox(header, tabela);
-        view.setCenter(centro);
+        view.setCenter(new VBox(header, tabela));
     }
 
     private void carregarEscolas() {
-        List<Escola> escolas = escolasDAO.listarTodas();
-        cbEscolas.getItems().setAll(escolas);
+        cbEscolas.getItems().setAll(escolasDAO.listarTodas());
     }
 
     private void carregarTurmas() {
-        Escola escolaSelecionada = cbEscolas.getValue();
-        if (escolaSelecionada != null) {
-            List<Turma> turmas = turmaDAO.listarPorEscola(escolaSelecionada.getId());
-            tabela.getItems().setAll(turmas);
-        } else {
-            tabela.getItems().clear();
+        Escola selecionada = cbEscolas.getValue();
+        if (selecionada != null) {
+            tabela.getItems().setAll(turmaDAO.listarPorEscola(selecionada.getId()));
         }
     }
 
     private void abrirModalNovaTurma() {
-        Escola escolaSelecionada = cbEscolas.getValue();
-        if (escolaSelecionada == null) {
+        Escola selecionada = cbEscolas.getValue();
+        if (selecionada == null) {
             new Alert(Alert.AlertType.WARNING, "Selecione uma escola primeiro!").show();
             return;
         }
 
         TextInputDialog dialog = new TextInputDialog();
         dialog.setTitle("Nova Turma");
-        dialog.setHeaderText("Turma para: " + escolaSelecionada.getNome());
-        dialog.setContentText("Nome da Turma (Ex: 6º Ano A):");
+        dialog.setHeaderText(null);
+        dialog.setContentText("Nome da Turma:");
 
         dialog.showAndWait().ifPresent(nome -> {
-            if (!nome.trim().isEmpty()) {
-                // Estamos cravando 2026 como ano letivo padrão por agora
-                Turma nova = new Turma(escolaSelecionada.getId(), nome, "2026");
-                if (turmaDAO.inserir(nova)) {
-                    carregarTurmas(); // Atualiza a tabela
-                } else {
-                    new Alert(Alert.AlertType.ERROR, "Erro ao gravar na nuvem!").show();
-                }
+            if (!nome.isBlank()) {
+                if (turmaDAO.inserir(new Turma(selecionada.getId(), nome, "2026"))) carregarTurmas();
             }
         });
     }
 
+    // Chamado pelo MainFX quando o utilizador dá duplo clique na escola!
     public void selecionarEscola(Escola escolaAlvo) {
         for (Escola e : cbEscolas.getItems()) {
             if (e.getId().equals(escolaAlvo.getId())) {
-                cbEscolas.setValue(e);
+                cbEscolas.getSelectionModel().select(e);
                 break;
             }
         }

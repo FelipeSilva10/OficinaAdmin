@@ -25,6 +25,12 @@ public class LoginFX extends Application {
         Label lblLogo = new Label("Oficina Admin");
         lblLogo.getStyleClass().addAll(Styles.TITLE_2);
 
+        txtUsuario = new TextField();
+        txtUsuario.setPromptText("Usuário");
+
+        txtSenha = new PasswordField();
+        txtSenha.setPromptText("Senha");
+
         Button btnEntrar = new Button("Entrar no Sistema");
         btnEntrar.getStyleClass().addAll(Styles.ACCENT);
         btnEntrar.setMaxWidth(Double.MAX_VALUE);
@@ -48,7 +54,6 @@ public class LoginFX extends Application {
             if (event.getCode() == KeyCode.ENTER) tentarLogin(stage);
         });
 
-        // Removido o bloqueio de tamanho. O JavaFX respira melhor assim.
         Scene scene = new Scene(root, 600, 500);
         stage.setTitle("Oficina Code - Autenticação");
         stage.setScene(scene);
@@ -65,10 +70,8 @@ public class LoginFX extends Application {
             return;
         }
 
-        // Instancia o nosso novo DAO
         dao.AdminDAO adminDAO = new dao.AdminDAO();
 
-        // Vai à nuvem do Supabase verificar se o utilizador e a senha batem
         if (adminDAO.autenticar(user, pass)) {
             try {
                 new MainFX().start(new Stage());

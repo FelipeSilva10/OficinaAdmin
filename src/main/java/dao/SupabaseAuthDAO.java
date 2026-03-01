@@ -7,15 +7,11 @@ import java.net.http.HttpResponse;
 
 public class SupabaseAuthDAO {
 
-    // Substitua pela URL base do seu projeto (aquela que tem .supabase.co)
-    private static final String SUPABASE_URL = "https://[SEU_PROJETO].supabase.co";
+    private static final String SUPABASE_URL = "https://iabajqkkodldjwcgvpiz.supabase.co";
 
     // Substitua pela sua chave SECRET (service_role).
-    private static final String SERVICE_ROLE_KEY = "sua_chave_service_role_aqui";
+    private static final String SERVICE_ROLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlhYmFqcWtrb2RsZGp3Y2d2cGl6Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjE0Mzk2MSwiZXhwIjoyMDg3NzE5OTYxfQ.sgVwsW6fzQIYxoGioZw59S-cgVR76UMxB3KrOi1H_dM";
 
-    /**
-     * Cria um usuário no Supabase Auth e retorna o UUID gerado (ou null se der erro).
-     */
     public static String criarUsuarioAuth(String email, String password) {
         try {
             String jsonBody = String.format(

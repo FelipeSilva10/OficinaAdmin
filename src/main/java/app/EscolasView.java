@@ -57,7 +57,18 @@ public class EscolasView {
 
         tabela.getColumns().addAll(colId, colNome, colStatus);
 
-        // --- MONTAGEM DA TELA ---
+        tabela.setTooltip(new Tooltip("Dê um duplo clique numa escola para ver as suas turmas"));
+        tabela.setRowFactory(tv -> {
+            TableRow<Escola> row = new TableRow<>();
+            row.setOnMouseClicked(event -> {
+                if (event.getClickCount() == 2 && (!row.isEmpty())) {
+                    Escola escolaClicada = row.getItem();
+                    MainFX.irParaTurmasDaEscola(escolaClicada);
+                }
+            });
+            return row;
+        });
+
         VBox centro = new VBox(header, tabela);
         view.setCenter(centro);
     }

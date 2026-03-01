@@ -47,6 +47,7 @@ public class TurmasView {
         btnNovaTurma.getStyleClass().add("accent");
         btnNovaTurma.setOnAction(e -> abrirModalNovaTurma());
 
+        // AQUI ESTÁ O "header" QUE O JAVA NÃO ESTAVA A ENCONTRAR!
         HBox header = new HBox(20, lblTitulo, cbEscolas, btnNovaTurma);
         header.setAlignment(Pos.CENTER_LEFT);
         header.setPadding(new Insets(0, 0, 20, 0));
@@ -105,6 +106,15 @@ public class TurmasView {
                 }
             }
         });
+    }
+
+    public void selecionarEscola(Escola escolaAlvo) {
+        for (Escola e : cbEscolas.getItems()) {
+            if (e.getId().equals(escolaAlvo.getId())) {
+                cbEscolas.setValue(e);
+                break;
+            }
+        }
     }
 
     public BorderPane getView() {

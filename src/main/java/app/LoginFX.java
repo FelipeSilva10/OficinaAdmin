@@ -1,28 +1,38 @@
 package app;
 
-import atlantafx.base.theme.PrimerDark;
+import atlantafx.base.theme.PrimerLight;
 import atlantafx.base.theme.Styles;
 import javafx.application.Application;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
-import javafx.scene.layout.*;
+import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
-import javafx.scene.input.KeyCode;
 
 public class LoginFX extends Application {
 
     private TextField txtUsuario;
     private PasswordField txtSenha;
     private Label lblErro;
+    private final AuthService authService = new AuthService();
 
     @Override
     public void start(Stage stage) {
-        // Aplica o tema moderno do AtlantaFX
-        Application.setUserAgentStylesheet(new PrimerDark().getUserAgentStylesheet());
 
-        // --- Componentes do Card de Login ---
+        Application.setUserAgentStylesheet(
+                new PrimerLight().getUserAgentStylesheet()
+        );
+
+        stage.setTitle("Oficina Code - Login Administrativo");
+        stage.setResizable(false);
+        stage.setScene(createScene(stage));
+        stage.show();
+    }
+
+    public Scene createScene(Stage stage) {
+
         Label lblLogo = new Label("Oficina Code");
         lblLogo.getStyleClass().addAll(Styles.TITLE_1);
         lblLogo.setStyle("-fx-font-weight: bold; -fx-text-fill: #3498db;");
@@ -33,82 +43,68 @@ public class LoginFX extends Application {
         txtUsuario = new TextField();
         txtUsuario.setPromptText("Usuário");
 
-        txtUsuario.setOnKeyPressed(event -> {
-            if (event.getCode() == KeyCode.ENTER) {
-                txtSenha.requestFocus();
-                event.consume();
-            }
-        });
-
         txtSenha = new PasswordField();
         txtSenha.setPromptText("Senha");
 
         Button btnEntrar = new Button("Entrar");
         btnEntrar.getStyleClass().addAll(Styles.ACCENT, Styles.LARGE);
         btnEntrar.setMaxWidth(Double.MAX_VALUE);
+        btnEntrar.setDefaultButton(true);
         btnEntrar.setOnAction(e -> tentarLogin(stage));
 
-        lblErro = new Label("Usuário ou senha incorretos.");
+        lblErro = new Label();
         lblErro.getStyleClass().addAll(Styles.DANGER);
         lblErro.setVisible(false);
 
-        // --- Layout do Card ---
-        VBox formCard = new VBox(15, lblLogo, lblSub, new Label("Usuário:"), txtUsuario, new Label("Senha:"), txtSenha, lblErro, btnEntrar);
+        VBox formCard = new VBox(
+                15,
+                lblLogo,
+                lblSub,
+                new Label("Usuário:"),
+                txtUsuario,
+                new Label("Senha:"),
+                txtSenha,
+                lblErro,
+                btnEntrar
+        );
+
         formCard.setPadding(new Insets(40));
         formCard.setAlignment(Pos.CENTER_LEFT);
         formCard.setMaxWidth(350);
         formCard.getStyleClass().addAll("card", Styles.ELEVATED_2);
 
-        // Fundo do Card levemente mais claro que o fundo da tela (para tema Dark)
-        formCard.setStyle("-fx-background-color: #1e1e1e; -fx-background-radius: 8px;");
-
-        // --- Fundo da Tela ---
         StackPane root = new StackPane(formCard);
         root.setStyle("-fx-background-color: #121212;");
         root.setPadding(new Insets(20));
 
-        root.setOnKeyPressed(event -> {
-            if (event.getCode() == KeyCode.ENTER) {
-                tentarLogin(stage);
-            }
-        });
-
-        Scene scene = new Scene(root, 500, 550);
-        stage.setTitle("Oficina Code - Login Administrativo");
-        stage.setScene(scene);
-        stage.setResizable(false);
-        stage.show();
+        return new Scene(root, 500, 550);
     }
 
-    private void tentarLogin(Stage stageLogin) {
+    private void tentarLogin(Stage stage) {
+
+        lblErro.setVisible(false);
+
         String user = txtUsuario.getText();
         String pass = txtSenha.getText();
 
         if (user.isBlank() || pass.isBlank()) {
-            lblErro.setText("Por favor, preencha todos os campos.");
-            lblErro.setVisible(true);
+            mostrarErro("Preencha todos os campos.");
             return;
         }
 
-        // LOGIN FIXO PARA DESENVOLVIMENTO (Substitui o antigo UsuarioDAO)
-        if (user.equals("admin") && pass.equals("admin")) {
-            abrirTelaPrincipal(stageLogin);
+        if (authService.authenticate(user, pass)) {
+            MainFX main = new MainFX(stage);
+            stage.setScene(main.createScene());
         } else {
-            lblErro.setText("Acesso negado. Use admin / admin");
-            lblErro.setVisible(true);
+            mostrarErro("Acesso negado.");
             txtSenha.clear();
+            txtSenha.requestFocus();
         }
     }
 
-    private void abrirTelaPrincipal(Stage stageLogin) {
-        try {
-            MainFX telaPrincipal = new MainFX();
-            Stage stageMain = new Stage();
-            telaPrincipal.start(stageMain);
-            stageLogin.close();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+    private void mostrarErro(String mensagem) {
+        lblErro.setText(mensagem);
+        lblErro.setVisible(true);
     }
 
     public static void main(String[] args) {

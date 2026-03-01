@@ -27,4 +27,9 @@ public class Escola {
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+
+    @Override
+    public String toString() {
+        return this.nome; // É isto que diz ao ComboBox para mostrar o nome e não um código!
+    }
 }

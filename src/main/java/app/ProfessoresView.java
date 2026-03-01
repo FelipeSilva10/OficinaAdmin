@@ -3,6 +3,10 @@ package app;
 import core.Professor;
 import dao.ProfessorDAO;
 import dao.SupabaseAuthDAO;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.collections.transformation.FilteredList;
+import javafx.collections.transformation.SortedList;
 import javafx.event.ActionEvent;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -17,9 +21,10 @@ public class ProfessoresView {
     private BorderPane view;
     private TableView<Professor> tabela;
     private ProfessorDAO professorDAO;
-    private MainFX mainApp; // Adicionamos a referência para a janela principal
+    private MainFX mainApp;
 
-    // O construtor agora recebe o MainFX
+    private final ObservableList<Professor> dados = FXCollections.observableArrayList();
+
     public ProfessoresView(MainFX mainApp) {
         this.mainApp = mainApp;
         professorDAO = new ProfessorDAO();
@@ -34,16 +39,24 @@ public class ProfessoresView {
         Label lblTitulo = new Label("Gestão de Professores");
         lblTitulo.setStyle("-fx-font-size: 22px; -fx-font-weight: bold;");
 
+        TextField txtBusca = new TextField();
+        txtBusca.setPromptText("Buscar por nome/id...");
+        txtBusca.setPrefWidth(250);
+
+        Button btnAtualizar = new Button("Atualizar");
+        btnAtualizar.setOnAction(e -> carregarDados());
+
         Button btnNovo = new Button("+ Cadastrar Novo");
         btnNovo.setStyle("-fx-background-color: #0366d6; -fx-text-fill: white;");
         btnNovo.setOnAction(e -> abrirModalNovoProfessor());
 
-        HBox header = new HBox(20, lblTitulo, btnNovo);
+        HBox header = new HBox(12, lblTitulo, txtBusca, btnAtualizar, btnNovo);
         header.setAlignment(Pos.CENTER_LEFT);
         header.setPadding(new Insets(0, 0, 20, 0));
 
         tabela = new TableView<>();
         tabela.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        tabela.setPlaceholder(new Label("Nenhum professor encontrado."));
 
         TableColumn<Professor, String> colNome = new TableColumn<>("Nome do Professor");
         colNome.setCellValueFactory(new PropertyValueFactory<>("nome"));
@@ -53,26 +66,41 @@ public class ProfessoresView {
         colId.setStyle("-fx-font-family: monospace; -fx-font-size: 13px; -fx-text-fill: gray;");
 
         tabela.getColumns().addAll(colNome, colId);
+
+        FilteredList<Professor> filtrado = new FilteredList<>(dados, p -> true);
+        txtBusca.textProperty().addListener((obs, old, term) -> {
+            String filtro = term == null ? "" : term.trim().toLowerCase();
+            filtrado.setPredicate(prof -> {
+                if (filtro.isBlank()) return true;
+                return prof.getNome().toLowerCase().contains(filtro)
+                        || prof.getId().toLowerCase().contains(filtro);
+            });
+        });
+
+        SortedList<Professor> ordenado = new SortedList<>(filtrado);
+        ordenado.comparatorProperty().bind(tabela.comparatorProperty());
+        tabela.setItems(ordenado);
+
         view.setCenter(new VBox(header, tabela));
     }
 
     private void carregarDados() {
-        tabela.getItems().clear();
-        tabela.getItems().addAll(professorDAO.listarTodos());
+        dados.setAll(professorDAO.listarTodos());
     }
 
     private void abrirModalNovoProfessor() {
         Dialog<ButtonType> dialog = new Dialog<>();
-
-        // A MÁGICA ACONTECE AQUI: Trava o modal na janela principal ANTES de abrir!
         dialog.initOwner(mainApp.getStage());
 
         dialog.setTitle("Cadastro Global");
         dialog.setHeaderText("Cadastre as credenciais do Professor");
 
-        TextField txtNome = new TextField(); txtNome.setPromptText("Nome Completo");
-        TextField txtEmail = new TextField(); txtEmail.setPromptText("E-mail");
-        PasswordField txtSenha = new PasswordField(); txtSenha.setPromptText("Min. 6 caracteres");
+        TextField txtNome = new TextField();
+        txtNome.setPromptText("Nome Completo");
+        TextField txtEmail = new TextField();
+        txtEmail.setPromptText("E-mail");
+        PasswordField txtSenha = new PasswordField();
+        txtSenha.setPromptText("Min. 6 caracteres");
 
         VBox form = new VBox(10, new Label("Nome:"), txtNome, new Label("E-mail:"), txtEmail, new Label("Senha:"), txtSenha);
         dialog.getDialogPane().setContent(form);
@@ -85,21 +113,25 @@ public class ProfessoresView {
             String senha = txtSenha.getText();
 
             if (nome.isBlank() || email.isBlank() || senha.length() < 6) {
-                new Alert(Alert.AlertType.WARNING, "Preencha tudo! (Senha min 6 chars)").show();
-                event.consume(); return;
+                new Alert(Alert.AlertType.WARNING, "Preencha tudo corretamente (senha mínima de 6 caracteres).").show();
+                event.consume();
+                return;
             }
 
             String novoId = SupabaseAuthDAO.criarUsuarioAuth(email, senha);
             if (novoId != null && professorDAO.inserir(novoId, nome)) {
-                // Sucesso
             } else {
-                new Alert(Alert.AlertType.ERROR, "Erro: Email em uso ou falha na rede.").show();
+                new Alert(Alert.AlertType.ERROR, "Erro: email em uso ou falha de rede.").show();
                 event.consume();
             }
         });
 
-        dialog.showAndWait().ifPresent(res -> { if (res == ButtonType.OK) carregarDados(); });
+        dialog.showAndWait().ifPresent(res -> {
+            if (res == ButtonType.OK) carregarDados();
+        });
     }
 
-    public BorderPane getView() { return view; }
+    public BorderPane getView() {
+        return view;
+    }
 }

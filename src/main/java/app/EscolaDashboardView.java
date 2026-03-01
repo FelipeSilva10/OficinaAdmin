@@ -159,7 +159,7 @@ public class EscolaDashboardView {
 
     private void abrirModalNovaTurma() {
         TextInputDialog dialog = new TextInputDialog();
-        dialog.initOwner(mainApp.getStage()); // Trava a modal na janela principal!
+        mainApp.configurarModal(dialog); // Trava a modal na janela principal!
         dialog.setTitle("Nova Turma");
         dialog.setHeaderText("Cadastrar turma para: " + escola.getNome());
         dialog.setContentText("Nome da Turma:");

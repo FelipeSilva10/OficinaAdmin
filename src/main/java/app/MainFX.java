@@ -22,31 +22,30 @@ public class MainFX extends Application {
         Application.setUserAgentStylesheet(new PrimerLight().getUserAgentStylesheet());
 
         root = new BorderPane();
-        root.setStyle("-fx-font-size: 15px;");
+        root.setStyle("-fx-font-size: 18px;");
 
         // --- SIDEBAR SIMPLES ---
         VBox sidebar = new VBox(10);
         sidebar.setPadding(new Insets(20));
-        sidebar.setPrefWidth(200);
+        sidebar.setPrefWidth(300);
         sidebar.setStyle("-fx-background-color: white; -fx-border-color: #e1e4e8; -fx-border-width: 0 1 0 0;");
 
         Label title = new Label("Menu Principal");
         title.setStyle("-fx-font-weight: bold; -fx-text-fill: #0366d6; -fx-padding: 0 0 10 0;");
 
-        Button btnEscolas = new Button("🏢 Escolas");
+        Button btnEscolas = new Button("Escolas");
         btnEscolas.setMaxWidth(Double.MAX_VALUE);
 
-        Button btnTurmas = new Button("📚 Turmas");
+        Button btnTurmas = new Button("Turmas");
         btnTurmas.setMaxWidth(Double.MAX_VALUE);
 
-        Button btnProfessores = new Button("👨‍🏫 Professores");
+        Button btnProfessores = new Button("Professores");
         btnProfessores.setMaxWidth(Double.MAX_VALUE);
 
-        Button btnSair = new Button("🚪 Sair");
+        Button btnSair = new Button("Sair");
         btnSair.setMaxWidth(Double.MAX_VALUE);
         btnSair.setStyle("-fx-text-fill: #cb2431;");
 
-        sidebar.getChildren().addAll(title, btnEscolas, btnTurmas, btnSair);
         sidebar.getChildren().addAll(title, btnEscolas, btnTurmas, btnProfessores, btnSair);
         root.setLeft(sidebar);
 

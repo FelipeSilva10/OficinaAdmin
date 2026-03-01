@@ -32,7 +32,7 @@ public class ProfessoresView {
         view = new BorderPane();
         view.setPadding(new Insets(20));
 
-        Label lblTitulo = new Label("👨‍🏫 Gestão de Professores");
+        Label lblTitulo = new Label("Gestão de Professores");
         lblTitulo.setStyle("-fx-font-size: 22px; -fx-font-weight: bold;");
 
         Button btnNovo = new Button("+ Cadastrar Professor");

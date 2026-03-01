@@ -90,6 +90,7 @@ public class ProfessoresView {
 
     private void abrirModalNovoProfessor() {
         Dialog<ButtonType> dialog = new Dialog<>();
+        mainApp.configurarModal(dialog);
         dialog.initOwner(mainApp.getStage());
 
         dialog.setTitle("Cadastro Global");
@@ -113,6 +114,7 @@ public class ProfessoresView {
             String senha = txtSenha.getText();
 
             if (nome.isBlank() || email.isBlank() || senha.length() < 6) {
+                mainApp.exibirAlerta(new Alert(Alert.AlertType.WARNING, "Preencha tudo corretamente (senha mínima de 6 caracteres)."));
                 new Alert(Alert.AlertType.WARNING, "Preencha tudo corretamente (senha mínima de 6 caracteres).").show();
                 event.consume();
                 return;
@@ -121,6 +123,7 @@ public class ProfessoresView {
             String novoId = SupabaseAuthDAO.criarUsuarioAuth(email, senha);
             if (novoId != null && professorDAO.inserir(novoId, nome)) {
             } else {
+                mainApp.exibirAlerta(new Alert(Alert.AlertType.ERROR, "Erro: email em uso ou falha de rede."));
                 new Alert(Alert.AlertType.ERROR, "Erro: email em uso ou falha de rede.").show();
                 event.consume();
             }

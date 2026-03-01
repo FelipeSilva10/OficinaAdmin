@@ -94,6 +94,7 @@ public class EscolasView {
                     if (dao.excluir(escola.getId())) {
                         carregarDados();
                     } else {
+                        mainApp.exibirAlerta(new Alert(Alert.AlertType.ERROR, "Erro ao excluir. Verifique vínculos com turmas."));
                         new Alert(Alert.AlertType.ERROR, "Erro ao excluir. Verifique vínculos com turmas.").show();
                     }
                 }
@@ -118,6 +119,7 @@ public class EscolasView {
         alert.setTitle("Confirmar exclusão");
         alert.setHeaderText("Deseja excluir a escola?");
         alert.setContentText("Escola: " + nomeEscola);
+        Optional<ButtonType> result = mainApp.exibirAlerta(alert);
         Optional<ButtonType> result = alert.showAndWait();
         return result.isPresent() && result.get() == ButtonType.OK;
     }
@@ -128,6 +130,7 @@ public class EscolasView {
 
     private void abrirModalNovaEscola() {
         TextInputDialog dialog = new TextInputDialog();
+        mainApp.configurarModal(dialog);
         dialog.initOwner(mainApp.getStage());
         dialog.setTitle("Nova Escola");
         dialog.setHeaderText("Cadastro rápido");

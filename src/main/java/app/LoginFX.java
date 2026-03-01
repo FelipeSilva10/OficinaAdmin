@@ -25,12 +25,6 @@ public class LoginFX extends Application {
         Label lblLogo = new Label("Oficina Admin");
         lblLogo.getStyleClass().addAll(Styles.TITLE_2);
 
-        txtUsuario = new TextField();
-        txtUsuario.setPromptText("Usuário (admin)");
-
-        txtSenha = new PasswordField();
-        txtSenha.setPromptText("Senha (admin)");
-
         Button btnEntrar = new Button("Entrar no Sistema");
         btnEntrar.getStyleClass().addAll(Styles.ACCENT);
         btnEntrar.setMaxWidth(Double.MAX_VALUE);
@@ -65,7 +59,17 @@ public class LoginFX extends Application {
         String user = txtUsuario.getText();
         String pass = txtSenha.getText();
 
-        if (user.equals("admin") && pass.equals("admin")) {
+        if (user.isBlank() || pass.isBlank()) {
+            lblErro.setText("Preencha todos os campos.");
+            lblErro.setVisible(true);
+            return;
+        }
+
+        // Instancia o nosso novo DAO
+        dao.AdminDAO adminDAO = new dao.AdminDAO();
+
+        // Vai à nuvem do Supabase verificar se o utilizador e a senha batem
+        if (adminDAO.autenticar(user, pass)) {
             try {
                 new MainFX().start(new Stage());
                 stageLogin.close();
@@ -73,6 +77,7 @@ public class LoginFX extends Application {
                 e.printStackTrace();
             }
         } else {
+            lblErro.setText("Credenciais inválidas.");
             lblErro.setVisible(true);
             txtSenha.clear();
         }

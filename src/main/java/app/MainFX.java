@@ -22,6 +22,7 @@ public class MainFX extends Application {
         Application.setUserAgentStylesheet(new PrimerLight().getUserAgentStylesheet());
 
         root = new BorderPane();
+        root.setStyle("-fx-font-size: 15px;");
 
         // --- SIDEBAR SIMPLES ---
         VBox sidebar = new VBox(10);

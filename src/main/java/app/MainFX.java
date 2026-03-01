@@ -46,7 +46,7 @@ public class MainFX {
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        Label lblHint = new Label("Duplo clique para abrir dashboards");
+        Label lblHint = new Label("Versão de testes");
         lblHint.setStyle("-fx-text-fill: #6b7785; -fx-font-size: 12px;");
 
         HBox header = new HBox(12, blocoTitulo, spacer, lblHint);
@@ -65,11 +65,11 @@ public class MainFX {
         Label title = new Label("Módulos");
         title.setStyle("-fx-font-weight: bold; -fx-text-fill: #2d3748; -fx-padding: 0 0 8 0;");
 
-        Button btnEscolas = criarBotaoSidebar("🏫 Escolas");
-        Button btnTurmas = criarBotaoSidebar("📚 Turmas");
-        Button btnProfessores = criarBotaoSidebar("👨‍🏫 Professores");
-        Button btnAlunos = criarBotaoSidebar("🎓 Alunos");
-        Button btnSair = criarBotaoSidebar("🚪 Sair");
+        Button btnEscolas = criarBotaoSidebar("Escolas");
+        Button btnTurmas = criarBotaoSidebar("Turmas");
+        Button btnProfessores = criarBotaoSidebar("Professores");
+        Button btnAlunos = criarBotaoSidebar("Alunos");
+        Button btnSair = criarBotaoSidebar("Sair");
         btnSair.setStyle("-fx-background-color: transparent; -fx-alignment: CENTER-LEFT; -fx-padding: 10; -fx-text-fill: #cb2431;");
 
         btnEscolas.setOnAction(e -> abrirEscolas());

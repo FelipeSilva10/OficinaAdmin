@@ -17,8 +17,11 @@ public class ProfessoresView {
     private BorderPane view;
     private TableView<Professor> tabela;
     private ProfessorDAO professorDAO;
+    private MainFX mainApp; // Adicionamos a referência para a janela principal
 
-    public ProfessoresView() {
+    // O construtor agora recebe o MainFX
+    public ProfessoresView(MainFX mainApp) {
+        this.mainApp = mainApp;
         professorDAO = new ProfessorDAO();
         construirInterface();
         carregarDados();
@@ -60,6 +63,10 @@ public class ProfessoresView {
 
     private void abrirModalNovoProfessor() {
         Dialog<ButtonType> dialog = new Dialog<>();
+
+        // A MÁGICA ACONTECE AQUI: Trava o modal na janela principal ANTES de abrir!
+        dialog.initOwner(mainApp.getStage());
+
         dialog.setTitle("Cadastro Global");
         dialog.setHeaderText("Cadastre as credenciais do Professor");
 

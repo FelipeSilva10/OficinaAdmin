@@ -25,27 +25,32 @@ public class LoginFX extends Application {
         Application.setUserAgentStylesheet(new PrimerLight().getUserAgentStylesheet());
 
         Label lblLogo = new Label("Oficina Admin");
-        lblLogo.getStyleClass().addAll(Styles.TITLE_2);
+        lblLogo.getStyleClass().addAll(Styles.TITLE_1); // Maior
         lblLogo.setStyle("-fx-font-weight: bold;");
 
         txtUsuario = new TextField();
         txtUsuario.setPromptText("Usuário");
+        txtUsuario.setStyle("-fx-font-size: 16px;");
 
-        // Lógica da Senha com Visibilidade
         txtSenhaOculta = new PasswordField();
         txtSenhaOculta.setPromptText("Senha");
+        txtSenhaOculta.setStyle("-fx-font-size: 16px;");
 
         txtSenhaVisivel = new TextField();
         txtSenhaVisivel.setPromptText("Senha");
+        txtSenhaVisivel.setStyle("-fx-font-size: 16px;");
         txtSenhaVisivel.setVisible(false);
         txtSenhaVisivel.setManaged(false);
 
-        // Sincroniza o texto entre o campo oculto e o visível
         txtSenhaVisivel.textProperty().bindBidirectional(txtSenhaOculta.textProperty());
 
         Button btnVerSenha = new Button("👁");
-        btnVerSenha.setStyle("-fx-background-color: transparent; -fx-cursor: hand;");
-        btnVerSenha.setOnAction(e -> alternarVisibilidadeSenha());
+        btnVerSenha.setStyle("-fx-background-color: transparent; -fx-cursor: hand; -fx-font-size: 18px;");
+        btnVerSenha.setOnAction(e -> {
+            boolean v = txtSenhaVisivel.isVisible();
+            txtSenhaVisivel.setVisible(!v); txtSenhaVisivel.setManaged(!v);
+            txtSenhaOculta.setVisible(v); txtSenhaOculta.setManaged(v);
+        });
 
         HBox boxSenha = new HBox(5, new StackPane(txtSenhaOculta, txtSenhaVisivel), btnVerSenha);
         boxSenha.setAlignment(Pos.CENTER_LEFT);
@@ -53,44 +58,37 @@ public class LoginFX extends Application {
         Button btnEntrar = new Button("Entrar no Sistema");
         btnEntrar.getStyleClass().addAll(Styles.ACCENT);
         btnEntrar.setMaxWidth(Double.MAX_VALUE);
+        btnEntrar.setStyle("-fx-font-size: 18px; -fx-font-weight: bold;");
         btnEntrar.setOnAction(e -> tentarLogin(stage));
 
         lblErro = new Label("Acesso negado.");
         lblErro.getStyleClass().addAll(Styles.DANGER);
         lblErro.setVisible(false);
 
-        VBox formCard = new VBox(20, lblLogo, txtUsuario, boxSenha, lblErro, btnEntrar);
-        formCard.setPadding(new Insets(40, 30, 40, 30));
+        VBox formCard = new VBox(25, lblLogo, txtUsuario, boxSenha, lblErro, btnEntrar);
+        formCard.setPadding(new Insets(50, 40, 50, 40));
         formCard.setAlignment(Pos.CENTER);
-        formCard.setMaxWidth(320);
-        formCard.getStyleClass().addAll(Styles.ELEVATED_2);
-        formCard.setStyle("-fx-background-color: white; -fx-background-radius: 8px;");
+        formCard.setMaxWidth(400); // Mais largo
+        formCard.getStyleClass().addAll(Styles.ELEVATED_3);
+        formCard.setStyle("-fx-background-color: white; -fx-background-radius: 12px;");
 
         StackPane root = new StackPane(formCard);
-        root.setStyle("-fx-background-color: #f0f2f5;"); // Fundo cinza bem suave
+        root.setStyle("-fx-background-color: #e9ecef;");
 
         root.setOnKeyPressed(event -> {
             if (event.getCode() == KeyCode.ENTER) tentarLogin(stage);
         });
 
-        Scene scene = new Scene(root, 450, 500);
-        stage.setTitle("Oficina Code - Autenticação");
+        Scene scene = new Scene(root, 1024, 768);
+        stage.setTitle("Oficina Code - Backoffice");
         stage.setScene(scene);
-        stage.setResizable(false); // Janela Fixa!
+        stage.setMaximized(true); // Já começa maximizado desde o login!
         stage.show();
     }
 
-    private void alternarVisibilidadeSenha() {
-        boolean visivel = txtSenhaVisivel.isVisible();
-        txtSenhaVisivel.setVisible(!visivel);
-        txtSenhaVisivel.setManaged(!visivel);
-        txtSenhaOculta.setVisible(visivel);
-        txtSenhaOculta.setManaged(visivel);
-    }
-
-    private void tentarLogin(Stage stageLogin) {
+    private void tentarLogin(Stage stage) {
         String user = txtUsuario.getText();
-        String pass = txtSenhaOculta.getText(); // Pega sempre da oculta (estão sincronizadas)
+        String pass = txtSenhaOculta.getText();
 
         if (user.isBlank() || pass.isBlank()) {
             lblErro.setText("Preencha todos os campos.");
@@ -98,15 +96,9 @@ public class LoginFX extends Application {
             return;
         }
 
-        dao.AdminDAO adminDAO = new dao.AdminDAO();
-
-        if (adminDAO.autenticar(user, pass)) {
-            try {
-                new MainFX().start(new Stage());
-                stageLogin.close();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+        if (new dao.AdminDAO().autenticar(user, pass)) {
+            // Em vez de criar um novo Stage, passamos o mesmo Stage maximizado!
+            new MainFX().iniciarSistema(stage);
         } else {
             lblErro.setText("Credenciais inválidas.");
             lblErro.setVisible(true);

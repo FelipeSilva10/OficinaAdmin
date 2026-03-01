@@ -18,10 +18,13 @@ public class EscolaDashboardView {
     private MainFX mainApp;
 
     private TableView<Turma> tabelaTurmas;
-    private TableView<Professor> tabelaProfessores;
-
     private TurmaDAO turmaDAO;
     private ProfessorDAO professorDAO;
+
+    // Painel da direita
+    private VBox painelGerenciar;
+    private Label lblTurmaNome;
+    private ComboBox<Professor> cbProfessoresGlobais;
 
     public EscolaDashboardView(MainFX mainApp, Escola escola) {
         this.mainApp = mainApp;
@@ -48,121 +51,98 @@ public class EscolaDashboardView {
         header.setPadding(new Insets(0, 0, 20, 0));
         view.setTop(header);
 
-        SplitPane splitPane = new SplitPane(criarPainelTurmas(), criarPainelProfessores());
-        splitPane.setDividerPositions(0.5);
+        SplitPane splitPane = new SplitPane(criarPainelEsquerdo(), criarPainelDireito());
+        splitPane.setDividerPositions(0.65);
         view.setCenter(splitPane);
     }
 
-    private VBox criarPainelTurmas() {
-        Label lbl = new Label("Turmas da Escola");
-        lbl.setStyle("-fx-font-size: 18px; -fx-font-weight: bold;");
-
+    private VBox criarPainelEsquerdo() {
         Button btnNova = new Button("+ Nova Turma");
         btnNova.setOnAction(e -> abrirModalNovaTurma());
 
-        HBox header = new HBox(10, lbl, btnNova);
-        header.setAlignment(Pos.CENTER_LEFT);
-
         tabelaTurmas = new TableView<>();
         tabelaTurmas.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-        TableColumn<Turma, String> colNome = new TableColumn<>("Nome");
-        colNome.setCellValueFactory(new PropertyValueFactory<>("nome"));
-        TableColumn<Turma, String> colAno = new TableColumn<>("Ano Letivo");
-        colAno.setCellValueFactory(new PropertyValueFactory<>("anoLetivo"));
-        tabelaTurmas.getColumns().addAll(colNome, colAno);
 
-        tabelaTurmas.setRowFactory(tv -> {
-            TableRow<Turma> row = new TableRow<>();
-            ContextMenu cm = new ContextMenu();
-            MenuItem mi = new MenuItem("Excluir Turma");
-            mi.setStyle("-fx-text-fill: red;");
-            mi.setOnAction(evt -> {
-                if (turmaDAO.excluir(row.getItem().getId())) carregarDados();
-            });
-            cm.getItems().add(mi);
-            row.emptyProperty().addListener((obs, wasEmpty, isNowEmpty) -> {
-                row.setContextMenu(isNowEmpty ? null : cm);
-            });
-            return row;
+        TableColumn<Turma, String> colNome = new TableColumn<>("Turma");
+        colNome.setCellValueFactory(new PropertyValueFactory<>("nome"));
+
+        TableColumn<Turma, String> colAno = new TableColumn<>("Ano");
+        colAno.setCellValueFactory(new PropertyValueFactory<>("anoLetivo"));
+        colAno.setMaxWidth(100);
+
+        TableColumn<Turma, String> colProf = new TableColumn<>("Professor Regente");
+        colProf.setCellValueFactory(new PropertyValueFactory<>("professorNome"));
+
+        tabelaTurmas.getColumns().addAll(colNome, colAno, colProf);
+
+        // Quando clica numa turma, atualiza o painel da direita!
+        tabelaTurmas.getSelectionModel().selectedItemProperty().addListener((obs, oldSel, newSel) -> {
+            if (newSel != null) atualizarPainelDireito(newSel);
         });
 
-        VBox box = new VBox(10, header, tabelaTurmas);
+        VBox box = new VBox(10, new HBox(10, new Label("📚 Turmas"), btnNova), tabelaTurmas);
         box.setPadding(new Insets(10));
         return box;
     }
 
-    private VBox criarPainelProfessores() {
-        Label lbl = new Label("Professores");
-        lbl.setStyle("-fx-font-size: 18px; -fx-font-weight: bold;");
+    private VBox criarPainelDireito() {
+        painelGerenciar = new VBox(15);
+        painelGerenciar.setPadding(new Insets(20));
+        painelGerenciar.setStyle("-fx-background-color: #f6f8fa; -fx-border-color: #e1e4e8; -fx-border-radius: 8px;");
+        painelGerenciar.setVisible(false); // Escondido até selecionar uma turma
 
-        Button btnVincular = new Button("+ Vincular Professor");
-        btnVincular.setOnAction(e -> abrirModalVincularProfessor());
+        Label tituloGerencia = new Label("Gerenciar Regência");
+        tituloGerencia.setStyle("-fx-font-weight: bold; -fx-font-size: 18px;");
 
-        HBox header = new HBox(10, lbl, btnVincular);
-        header.setAlignment(Pos.CENTER_LEFT);
+        lblTurmaNome = new Label("Turma: ");
 
-        tabelaProfessores = new TableView<>();
-        tabelaProfessores.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-        TableColumn<Professor, String> colNome = new TableColumn<>("Nome do Professor");
-        colNome.setCellValueFactory(new PropertyValueFactory<>("nome"));
-        tabelaProfessores.getColumns().add(colNome);
+        cbProfessoresGlobais = new ComboBox<>();
+        cbProfessoresGlobais.setPromptText("Selecione um Professor...");
+        cbProfessoresGlobais.setMaxWidth(Double.MAX_VALUE);
 
-        tabelaProfessores.setRowFactory(tv -> {
-            TableRow<Professor> row = new TableRow<>();
-            ContextMenu cm = new ContextMenu();
-            MenuItem mi = new MenuItem("❌ Desvincular desta Escola");
-            mi.setStyle("-fx-text-fill: red;");
-            mi.setOnAction(evt -> {
-                if (professorDAO.desvincularEscola(row.getItem().getId(), escola.getId())) carregarDados();
-            });
-            cm.getItems().add(mi);
-            row.emptyProperty().addListener((obs, wasEmpty, isNowEmpty) -> {
-                row.setContextMenu(isNowEmpty ? null : cm);
-            });
-            return row;
-        });
+        Button btnSalvar = new Button("Salvar Alteração");
+        btnSalvar.setStyle("-fx-background-color: #2ea043; -fx-text-fill: white;");
+        btnSalvar.setMaxWidth(Double.MAX_VALUE);
+        btnSalvar.setOnAction(e -> salvarProfessorNaTurma());
 
-        VBox box = new VBox(10, header, tabelaProfessores);
-        box.setPadding(new Insets(10));
-        return box;
+        painelGerenciar.getChildren().addAll(tituloGerencia, lblTurmaNome, new Label("Atribuir Professor:"), cbProfessoresGlobais, btnSalvar);
+
+        VBox wrapper = new VBox(new Label("Selecione uma turma na tabela para gerenciar."), painelGerenciar);
+        wrapper.setPadding(new Insets(10));
+        return wrapper;
+    }
+
+    private void atualizarPainelDireito(Turma turma) {
+        lblTurmaNome.setText("Turma: " + turma.getNome() + " (" + turma.getAnoLetivo() + ")");
+        cbProfessoresGlobais.getItems().setAll(professorDAO.listarTodos());
+        painelGerenciar.setVisible(true);
+    }
+
+    private void salvarProfessorNaTurma() {
+        Turma selecionada = tabelaTurmas.getSelectionModel().getSelectedItem();
+        Professor profSelecionado = cbProfessoresGlobais.getValue();
+
+        if (selecionada != null && profSelecionado != null) {
+            if (turmaDAO.definirProfessor(selecionada.getId(), profSelecionado.getId())) {
+                carregarDados(); // Atualiza tudo
+                painelGerenciar.setVisible(false);
+            }
+        }
     }
 
     private void carregarDados() {
         tabelaTurmas.getItems().setAll(turmaDAO.listarPorEscola(escola.getId()));
-        tabelaProfessores.getItems().setAll(professorDAO.listarPorEscola(escola.getId()));
     }
 
     private void abrirModalNovaTurma() {
         TextInputDialog dialog = new TextInputDialog();
+        dialog.initOwner(mainApp.getStage()); // Trava a modal na janela principal!
         dialog.setTitle("Nova Turma");
-        dialog.setHeaderText("Turma para: " + escola.getNome());
+        dialog.setHeaderText("Cadastrar turma para: " + escola.getNome());
         dialog.setContentText("Nome da Turma:");
         dialog.showAndWait().ifPresent(nome -> {
             if (!nome.isBlank()) {
-                if (turmaDAO.inserir(new Turma(escola.getId(), nome, "2026"))) carregarDados();
-            }
-        });
-    }
-
-    private void abrirModalVincularProfessor() {
-        Dialog<Professor> dialog = new Dialog<>();
-        dialog.setTitle("Vincular Professor");
-        dialog.setHeaderText("Selecione um professor da base global");
-
-        ComboBox<Professor> cb = new ComboBox<>();
-        cb.getItems().setAll(professorDAO.listarTodos());
-        cb.setPromptText("Selecione...");
-        cb.setPrefWidth(250);
-
-        dialog.getDialogPane().setContent(new VBox(10, new Label("Professor:"), cb));
-        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
-        dialog.setResultConverter(btn -> btn == ButtonType.OK ? cb.getValue() : null);
-
-        dialog.showAndWait().ifPresent(prof -> {
-            if (professorDAO.vincularEscola(prof.getId(), escola.getId())) {
-                carregarDados();
-            } else {
-                new Alert(Alert.AlertType.ERROR, "Professor já vinculado ou erro no banco!").show();
+                if (turmaDAO.inserir(escola.getId(), nome, "2026")) carregarDados();
             }
         });
     }

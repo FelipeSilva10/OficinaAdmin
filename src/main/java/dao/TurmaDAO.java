@@ -1,33 +1,21 @@
 package dao;
 
 import core.Turma;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
 public class TurmaDAO {
 
-    // Método para SALVAR no Supabase
-    public boolean inserir(Turma turma) {
+    public boolean inserir(String escolaId, String nome, String anoLetivo) {
         String sql = "INSERT INTO turmas (escola_id, nome, ano_letivo) VALUES (?::uuid, ?, ?)";
-
         try (Connection conn = ConexaoBD.conectar();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
-
-            stmt.setString(1, turma.getEscolaId()); // O cast ::uuid resolve incompatibilidades do Java com o Postgres
-            stmt.setString(2, turma.getNome());
-            stmt.setString(3, turma.getAnoLetivo());
-
-            int linhasAfetadas = stmt.executeUpdate();
-            return linhasAfetadas > 0;
-
-        } catch (SQLException e) {
-            System.err.println("❌ Erro ao inserir turma: " + e.getMessage());
-            return false;
-        }
+            stmt.setString(1, escolaId);
+            stmt.setString(2, nome);
+            stmt.setString(3, anoLetivo);
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) { return false; }
     }
 
     public boolean excluir(String id) {
@@ -36,35 +24,40 @@ public class TurmaDAO {
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, id);
             return stmt.executeUpdate() > 0;
-        } catch (SQLException e) {
-            System.err.println("❌ Erro ao excluir turma: " + e.getMessage());
-            return false;
-        }
+        } catch (SQLException e) { return false; }
     }
 
-    public List<Turma> listarPorEscola(String escolaId) {
-        List<Turma> turmas = new ArrayList<>();
-        String sql = "SELECT * FROM turmas WHERE escola_id = ?::uuid ORDER BY created_at DESC";
-
+    public boolean definirProfessor(String turmaId, String professorId) {
+        String sql = "UPDATE turmas SET professor_id = ?::uuid WHERE id = ?::uuid";
         try (Connection conn = ConexaoBD.conectar();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, professorId);
+            stmt.setString(2, turmaId);
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) { return false; }
+    }
 
-            stmt.setString(1, escolaId);
+    // Traz TODAS as turmas do banco (Para a janela global)
+    public List<Turma> listarTodas() {
+        return buscarComFiltro("SELECT t.*, e.nome as escola_nome, p.nome as prof_nome FROM turmas t JOIN escolas e ON t.escola_id = e.id LEFT JOIN perfis p ON t.professor_id = p.id ORDER BY t.created_at DESC", null);
+    }
 
+    // Traz turmas SÓ de uma escola (Para o Dashboard)
+    public List<Turma> listarPorEscola(String escolaId) {
+        return buscarComFiltro("SELECT t.*, e.nome as escola_nome, p.nome as prof_nome FROM turmas t JOIN escolas e ON t.escola_id = e.id LEFT JOIN perfis p ON t.professor_id = p.id WHERE t.escola_id = ?::uuid ORDER BY t.created_at DESC", escolaId);
+    }
+
+    private List<Turma> buscarComFiltro(String sql, String param) {
+        List<Turma> turmas = new ArrayList<>();
+        try (Connection conn = ConexaoBD.conectar();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            if (param != null) stmt.setString(1, param);
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
-                    Turma turma = new Turma(
-                            rs.getString("id"),
-                            rs.getString("escola_id"),
-                            rs.getString("nome"),
-                            rs.getString("ano_letivo")
-                    );
-                    turmas.add(turma);
+                    turmas.add(new Turma(rs.getString("id"), rs.getString("escola_id"), rs.getString("nome"), rs.getString("ano_letivo"), rs.getString("escola_nome"), rs.getString("prof_nome")));
                 }
             }
-        } catch (SQLException e) {
-            System.err.println("❌ Erro ao listar turmas: " + e.getMessage());
-        }
+        } catch (SQLException e) { e.printStackTrace(); }
         return turmas;
     }
 }

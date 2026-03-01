@@ -21,12 +21,15 @@ public class TurmasView {
     private ComboBox<Escola> cbEscolas;
     private TurmaDAO turmaDAO;
     private EscolasDAO escolasDAO;
+    private MainFX mainApp;
 
-    public TurmasView() {
+    public TurmasView(MainFX mainApp) {
+        this.mainApp = mainApp;
         turmaDAO = new TurmaDAO();
         escolasDAO = new EscolasDAO();
         construirInterface();
         carregarEscolas();
+        carregarTurmas();
     }
 
     private void construirInterface() {
@@ -58,7 +61,13 @@ public class TurmasView {
         TableColumn<Turma, String> colAno = new TableColumn<>("Ano Letivo");
         colAno.setCellValueFactory(new PropertyValueFactory<>("anoLetivo"));
 
-        tabela.getColumns().addAll(colNome, colAno);
+        TableColumn<Turma, String> colEscola = new TableColumn<>("Escola");
+        colEscola.setCellValueFactory(new PropertyValueFactory<>("escolaNome"));
+
+        TableColumn<Turma, String> colProf = new TableColumn<>("Professor");
+        colProf.setCellValueFactory(new PropertyValueFactory<>("professorNome"));
+
+        tabela.getColumns().addAll(colNome, colAno, colEscola, colProf);
 
         tabela.setRowFactory(tv -> {
             TableRow<Turma> row = new TableRow<>();
@@ -93,7 +102,9 @@ public class TurmasView {
 
     private void carregarTurmas() {
         Escola selecionada = cbEscolas.getValue();
-        if (selecionada != null) {
+        if (selecionada == null) {
+            tabela.getItems().setAll(turmaDAO.listarTodas());
+        } else {
             tabela.getItems().setAll(turmaDAO.listarPorEscola(selecionada.getId()));
         }
     }
@@ -106,13 +117,20 @@ public class TurmasView {
         }
 
         TextInputDialog dialog = new TextInputDialog();
+
+        // TEM QUE SER AQUI: Trava a janela filha dentro da janela mãe ANTES de abrir!
+        dialog.initOwner(mainApp.getStage());
+
         dialog.setTitle("Nova Turma");
         dialog.setHeaderText(null);
         dialog.setContentText("Nome da Turma:");
 
         dialog.showAndWait().ifPresent(nome -> {
             if (!nome.isBlank()) {
-                if (turmaDAO.inserir(new Turma(selecionada.getId(), nome, "2026"))) carregarTurmas();
+                // Passando os 3 textos diretamente conforme o novo TurmaDAO
+                if (turmaDAO.inserir(selecionada.getId(), nome, "2026")) {
+                    carregarTurmas();
+                }
             }
         });
     }

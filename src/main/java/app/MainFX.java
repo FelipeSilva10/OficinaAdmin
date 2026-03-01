@@ -39,17 +39,21 @@ public class MainFX extends Application {
         Button btnTurmas = new Button("📚 Turmas");
         btnTurmas.setMaxWidth(Double.MAX_VALUE);
 
+        Button btnProfessores = new Button("👨‍🏫 Professores");
+        btnProfessores.setMaxWidth(Double.MAX_VALUE);
+
         Button btnSair = new Button("🚪 Sair");
         btnSair.setMaxWidth(Double.MAX_VALUE);
         btnSair.setStyle("-fx-text-fill: #cb2431;");
 
         sidebar.getChildren().addAll(title, btnEscolas, btnTurmas, btnSair);
+        sidebar.getChildren().addAll(title, btnEscolas, btnTurmas, btnProfessores, btnSair);
         root.setLeft(sidebar);
 
-        // --- ROTAS (Seguras, sem státicos) ---
         btnEscolas.setOnAction(e -> abrirEscolas());
         btnTurmas.setOnAction(e -> abrirTurmas(null));
         btnSair.setOnAction(e -> sair());
+        btnProfessores.setOnAction(e -> root.setCenter(new ProfessoresView().getView()));
 
         // Inicia na tela de Escolas
         abrirEscolas();
@@ -65,7 +69,6 @@ public class MainFX extends Application {
         root.setCenter(new EscolasView(this).getView());
     }
 
-    // Passa a escola diretamente para a view de turmas se vier do duplo clique
     public void abrirTurmas(Escola escolaSelecionada) {
         TurmasView turmasView = new TurmasView();
         root.setCenter(turmasView.getView());

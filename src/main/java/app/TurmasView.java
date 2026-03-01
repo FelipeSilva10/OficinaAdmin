@@ -135,6 +135,7 @@ public class TurmasView {
         alert.setHeaderText("Deseja excluir a turma?");
         alert.setContentText("Turma: " + nomeTurma);
         Optional<ButtonType> result = mainApp.exibirAlerta(alert);
+        Optional<ButtonType> result = alert.showAndWait();
         return result.isPresent() && result.get() == ButtonType.OK;
     }
 
@@ -155,11 +156,13 @@ public class TurmasView {
         Escola selecionada = cbEscolas.getValue();
         if (selecionada == null) {
             mainApp.exibirAlerta(new Alert(Alert.AlertType.WARNING, "Selecione uma escola primeiro."));
+            new Alert(Alert.AlertType.WARNING, "Selecione uma escola primeiro.").show();
             return;
         }
 
         TextInputDialog dialog = new TextInputDialog();
         mainApp.configurarModal(dialog);
+        dialog.initOwner(mainApp.getStage());
         dialog.setTitle("Nova Turma");
         dialog.setHeaderText("Cadastro rápido");
         dialog.setContentText("Nome da Turma:");

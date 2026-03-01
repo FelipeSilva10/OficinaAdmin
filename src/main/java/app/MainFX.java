@@ -55,6 +55,26 @@ public class MainFX {
         Label lblHint = new Label("Duplo clique para abrir dashboards");
         lblHint.setStyle("-fx-text-fill: #6b7785; -fx-font-size: 12px;");
 
+
+        abrirEscolas();
+        stage.getScene().setRoot(root);
+    }
+
+    private HBox criarHeaderSistema() {
+        Label lblTitulo = new Label("Oficina Admin");
+        lblTitulo.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #1f2d3d;");
+
+        Label lblSubtitulo = new Label("Painel administrativo");
+        lblSubtitulo.setStyle("-fx-text-fill: #6b7785;");
+
+        VBox blocoTitulo = new VBox(2, lblTitulo, lblSubtitulo);
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        Label lblHint = new Label("Duplo clique para abrir dashboards");
+        lblHint.setStyle("-fx-text-fill: #6b7785; -fx-font-size: 12px;");
+
         HBox header = new HBox(12, blocoTitulo, spacer, lblHint);
         header.setPadding(new Insets(12, 20, 12, 20));
         header.setAlignment(Pos.CENTER_LEFT);
@@ -169,6 +189,10 @@ public class MainFX {
         if (estavaFullscreen && owner != null) owner.setFullScreen(true);
         if (owner != null) owner.toFront();
         return resultado;
+
+    private AlunosView getAlunosView() {
+        if (alunosView == null) alunosView = new AlunosView(this);
+        return alunosView;
     }
 
     public Stage getStage() {

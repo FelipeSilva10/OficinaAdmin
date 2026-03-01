@@ -60,6 +60,30 @@ public class TurmasView {
 
         tabela.getColumns().addAll(colNome, colAno);
 
+        tabela.setRowFactory(tv -> {
+            TableRow<Turma> row = new TableRow<>();
+            ContextMenu contextMenu = new ContextMenu();
+            MenuItem deleteItem = new MenuItem("🗑 Excluir Turma");
+            deleteItem.setStyle("-fx-text-fill: red;");
+
+            deleteItem.setOnAction(event -> {
+                Turma turma = row.getItem();
+                if (turmaDAO.excluir(turma.getId())) {
+                    carregarTurmas(); // Recarrega a tabela
+                }
+            });
+            contextMenu.getItems().add(deleteItem);
+
+            row.emptyProperty().addListener((obs, wasEmpty, isNowEmpty) -> {
+                if (isNowEmpty) {
+                    row.setContextMenu(null);
+                } else {
+                    row.setContextMenu(contextMenu);
+                }
+            });
+            return row;
+        });
+
         view.setCenter(new VBox(header, tabela));
     }
 

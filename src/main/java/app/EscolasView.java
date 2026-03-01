@@ -52,9 +52,33 @@ public class EscolasView {
 
         tabela.getColumns().addAll(colNome, colStatus);
 
-        // Duplo Clique Limpo
+// Clique Duplo para abrir Turmas E Clique Direito para Excluir
         tabela.setRowFactory(tv -> {
             TableRow<Escola> row = new TableRow<>();
+
+            // Menu de Contexto (Clique Direito)
+            ContextMenu contextMenu = new ContextMenu();
+            MenuItem deleteItem = new MenuItem("🗑 Excluir Escola");
+            deleteItem.setStyle("-fx-text-fill: red;");
+            deleteItem.setOnAction(event -> {
+                Escola escola = row.getItem();
+                if (dao.excluir(escola.getId())) {
+                    carregarDados();
+                } else {
+                    new Alert(Alert.AlertType.ERROR, "Erro ao excluir. Verifique se existem turmas vinculadas!").show();
+                }
+            });
+            contextMenu.getItems().add(deleteItem);
+
+            row.emptyProperty().addListener((obs, wasEmpty, isNowEmpty) -> {
+                if (isNowEmpty) {
+                    row.setContextMenu(null);
+                } else {
+                    row.setContextMenu(contextMenu);
+                }
+            });
+
+            // Clique Duplo
             row.setOnMouseClicked(event -> {
                 if (event.getClickCount() == 2 && (!row.isEmpty())) {
                     mainApp.abrirTurmas(row.getItem());

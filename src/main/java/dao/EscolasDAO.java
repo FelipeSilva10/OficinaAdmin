@@ -30,7 +30,18 @@ public class EscolasDAO {
         }
     }
 
-    // Método para LER do Supabase
+    public boolean excluir(String id) {
+        String sql = "DELETE FROM escolas WHERE id = ?::uuid";
+        try (Connection conn = ConexaoBD.conectar();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, id);
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            System.err.println("❌ Erro ao excluir escola: " + e.getMessage());
+            return false;
+        }
+    }
+
     public List<Escola> listarTodas() {
         List<Escola> escolas = new ArrayList<>();
         String sql = "SELECT * FROM escolas ORDER BY created_at DESC";

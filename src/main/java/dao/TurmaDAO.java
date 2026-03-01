@@ -30,7 +30,18 @@ public class TurmaDAO {
         }
     }
 
-    // Método para LER as turmas de uma ESCOLA ESPECÍFICA
+    public boolean excluir(String id) {
+        String sql = "DELETE FROM turmas WHERE id = ?::uuid";
+        try (Connection conn = ConexaoBD.conectar();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, id);
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            System.err.println("❌ Erro ao excluir turma: " + e.getMessage());
+            return false;
+        }
+    }
+
     public List<Turma> listarPorEscola(String escolaId) {
         List<Turma> turmas = new ArrayList<>();
         String sql = "SELECT * FROM turmas WHERE escola_id = ?::uuid ORDER BY created_at DESC";

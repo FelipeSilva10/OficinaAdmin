@@ -52,7 +52,7 @@ public class EscolasView {
 
         tabela.getColumns().addAll(colNome, colStatus);
 
-// Clique Duplo para abrir Turmas E Clique Direito para Excluir
+        // Clique Duplo para abrir Turmas E Clique Direito para Excluir
         tabela.setRowFactory(tv -> {
             TableRow<Escola> row = new TableRow<>();
 
@@ -78,10 +78,9 @@ public class EscolasView {
                 }
             });
 
-            // Clique Duplo
             row.setOnMouseClicked(event -> {
                 if (event.getClickCount() == 2 && (!row.isEmpty())) {
-                    mainApp.abrirTurmas(row.getItem());
+                    mainApp.abrirDashboardEscola(row.getItem()); // MUDOU AQUI!
                 }
             });
             return row;

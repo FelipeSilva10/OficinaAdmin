@@ -1,8 +1,6 @@
 package app;
 
-import core.Escola;
 import core.Professor;
-import dao.EscolasDAO;
 import dao.ProfessorDAO;
 import dao.SupabaseAuthDAO;
 import javafx.event.ActionEvent;
@@ -19,11 +17,9 @@ public class ProfessoresView {
     private BorderPane view;
     private TableView<Professor> tabela;
     private ProfessorDAO professorDAO;
-    private EscolasDAO escolasDAO;
 
     public ProfessoresView() {
         professorDAO = new ProfessorDAO();
-        escolasDAO = new EscolasDAO();
         construirInterface();
         carregarDados();
     }
@@ -35,7 +31,7 @@ public class ProfessoresView {
         Label lblTitulo = new Label("Gestão de Professores");
         lblTitulo.setStyle("-fx-font-size: 22px; -fx-font-weight: bold;");
 
-        Button btnNovo = new Button("+ Cadastrar Professor");
+        Button btnNovo = new Button("+ Cadastrar Novo");
         btnNovo.setStyle("-fx-background-color: #0366d6; -fx-text-fill: white;");
         btnNovo.setOnAction(e -> abrirModalNovoProfessor());
 
@@ -49,15 +45,11 @@ public class ProfessoresView {
         TableColumn<Professor, String> colNome = new TableColumn<>("Nome do Professor");
         colNome.setCellValueFactory(new PropertyValueFactory<>("nome"));
 
-        TableColumn<Professor, String> colEscola = new TableColumn<>("Instituição (Escola)");
-        colEscola.setCellValueFactory(new PropertyValueFactory<>("escolaNome"));
-
         TableColumn<Professor, String> colId = new TableColumn<>("ID de Acesso (Auth)");
         colId.setCellValueFactory(new PropertyValueFactory<>("id"));
-        colId.setStyle("-fx-font-family: monospace; -fx-font-size: 11px; -fx-text-fill: gray;");
+        colId.setStyle("-fx-font-family: monospace; -fx-font-size: 13px; -fx-text-fill: gray;");
 
-        tabela.getColumns().addAll(colNome, colEscola, colId);
-
+        tabela.getColumns().addAll(colNome, colId);
         view.setCenter(new VBox(header, tabela));
     }
 
@@ -68,64 +60,39 @@ public class ProfessoresView {
 
     private void abrirModalNovoProfessor() {
         Dialog<ButtonType> dialog = new Dialog<>();
-        dialog.setTitle("Cadastrar Professor");
-        dialog.setHeaderText("Preencha as credenciais de acesso");
+        dialog.setTitle("Cadastro Global");
+        dialog.setHeaderText("Cadastre as credenciais do Professor");
 
-        // Criando os campos do formulário
-        TextField txtNome = new TextField(); txtNome.setPromptText("Ex: Felipe Silva");
-        TextField txtEmail = new TextField(); txtEmail.setPromptText("Ex: professor@oficina.com");
-        PasswordField txtSenha = new PasswordField(); txtSenha.setPromptText("Mínimo de 6 caracteres");
+        TextField txtNome = new TextField(); txtNome.setPromptText("Nome Completo");
+        TextField txtEmail = new TextField(); txtEmail.setPromptText("E-mail");
+        PasswordField txtSenha = new PasswordField(); txtSenha.setPromptText("Min. 6 caracteres");
 
-        ComboBox<Escola> cbEscola = new ComboBox<>();
-        cbEscola.getItems().setAll(escolasDAO.listarTodas());
-        cbEscola.setPromptText("Selecione a Escola...");
-        cbEscola.setPrefWidth(300);
-
-        VBox form = new VBox(10,
-                new Label("Nome Completo:"), txtNome,
-                new Label("E-mail de Login:"), txtEmail,
-                new Label("Senha de Acesso:"), txtSenha,
-                new Label("Vincular à Escola:"), cbEscola
-        );
-
+        VBox form = new VBox(10, new Label("Nome:"), txtNome, new Label("E-mail:"), txtEmail, new Label("Senha:"), txtSenha);
         dialog.getDialogPane().setContent(form);
         dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
 
-        // Interceptando o clique do botão OK para fazer a validação e criar na API
         Button btOk = (Button) dialog.getDialogPane().lookupButton(ButtonType.OK);
         btOk.addEventFilter(ActionEvent.ACTION, event -> {
-
             String nome = txtNome.getText();
             String email = txtEmail.getText();
             String senha = txtSenha.getText();
-            Escola escola = cbEscola.getValue();
 
-            if (nome.isBlank() || email.isBlank() || senha.length() < 6 || escola == null) {
-                new Alert(Alert.AlertType.WARNING, "Preencha todos os campos corretamente! (Senha min. 6 chars)").show();
-                event.consume(); // Impede o modal de fechar
-                return;
+            if (nome.isBlank() || email.isBlank() || senha.length() < 6) {
+                new Alert(Alert.AlertType.WARNING, "Preencha tudo! (Senha min 6 chars)").show();
+                event.consume(); return;
             }
 
-            // COMBO MÁGICO 1: Tenta criar no Supabase Auth
-            String novoIdAuth = SupabaseAuthDAO.criarUsuarioAuth(email, senha);
-
-            if (novoIdAuth != null) {
-                // COMBO MÁGICO 2: Se deu certo, salva o Perfil no banco de dados!
-                if (!professorDAO.inserir(novoIdAuth, escola.getId(), nome)) {
-                    new Alert(Alert.AlertType.ERROR, "Conta criada, mas falhou ao gravar o perfil!").show();
-                }
+            String novoId = SupabaseAuthDAO.criarUsuarioAuth(email, senha);
+            if (novoId != null && professorDAO.inserir(novoId, nome)) {
+                // Sucesso
             } else {
-                new Alert(Alert.AlertType.ERROR, "Falha na API: Email já existe ou senha inválida.").show();
-                event.consume(); // Impede de fechar
+                new Alert(Alert.AlertType.ERROR, "Erro: Email em uso ou falha na rede.").show();
+                event.consume();
             }
         });
 
-        dialog.showAndWait().ifPresent(response -> {
-            if (response == ButtonType.OK) carregarDados();
-        });
+        dialog.showAndWait().ifPresent(res -> { if (res == ButtonType.OK) carregarDados(); });
     }
 
-    public BorderPane getView() {
-        return view;
-    }
+    public BorderPane getView() { return view; }
 }

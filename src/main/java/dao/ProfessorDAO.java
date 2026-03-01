@@ -10,49 +10,68 @@ import java.util.List;
 
 public class ProfessorDAO {
 
-    // Insere o perfil após o Auth ter criado a conta
-    public boolean inserir(String authId, String escolaId, String nome) {
-        String sql = "INSERT INTO perfis (id, escola_id, nome, role) VALUES (?::uuid, ?::uuid, ?, 'teacher')";
-
+    public boolean inserir(String authId, String nome) {
+        String sql = "INSERT INTO perfis (id, nome, role) VALUES (?::uuid, ?, 'teacher')";
         try (Connection conn = ConexaoBD.conectar();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
-
             stmt.setString(1, authId);
-            stmt.setString(2, escolaId);
-            stmt.setString(3, nome);
-
+            stmt.setString(2, nome);
             return stmt.executeUpdate() > 0;
-
         } catch (SQLException e) {
-            System.err.println("❌ Erro ao inserir perfil de professor: " + e.getMessage());
+            System.err.println("❌ Erro ao inserir professor: " + e.getMessage());
             return false;
         }
     }
 
-    // Lista os professores juntando com a tabela de escolas para pegar o nome da instituição
+    // Traz TODOS os professores da base (para o cadastro global)
     public List<Professor> listarTodos() {
         List<Professor> lista = new ArrayList<>();
-        String sql = "SELECT p.id, p.escola_id, p.nome, e.nome as escola_nome " +
-                "FROM perfis p " +
-                "JOIN escolas e ON p.escola_id = e.id " +
-                "WHERE p.role = 'teacher' " +
-                "ORDER BY p.created_at DESC";
-
+        String sql = "SELECT id, nome FROM perfis WHERE role = 'teacher' ORDER BY created_at DESC";
         try (Connection conn = ConexaoBD.conectar();
              PreparedStatement stmt = conn.prepareStatement(sql);
              ResultSet rs = stmt.executeQuery()) {
-
             while (rs.next()) {
-                lista.add(new Professor(
-                        rs.getString("id"),
-                        rs.getString("escola_id"),
-                        rs.getString("nome"),
-                        rs.getString("escola_nome")
-                ));
+                lista.add(new Professor(rs.getString("id"), rs.getString("nome")));
             }
-        } catch (SQLException e) {
-            System.err.println("❌ Erro ao listar professores: " + e.getMessage());
-        }
+        } catch (SQLException e) { e.printStackTrace(); }
         return lista;
+    }
+
+    // Lista SÓ os professores vinculados a uma escola específica (Para o Dashboard)
+    public List<Professor> listarPorEscola(String escolaId) {
+        List<Professor> lista = new ArrayList<>();
+        String sql = "SELECT p.id, p.nome FROM perfis p " +
+                "JOIN escola_professores ep ON p.id = ep.professor_id " +
+                "WHERE ep.escola_id = ?::uuid";
+        try (Connection conn = ConexaoBD.conectar();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, escolaId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    lista.add(new Professor(rs.getString("id"), rs.getString("nome")));
+                }
+            }
+        } catch (SQLException e) { e.printStackTrace(); }
+        return lista;
+    }
+
+    public boolean vincularEscola(String professorId, String escolaId) {
+        String sql = "INSERT INTO escola_professores (professor_id, escola_id) VALUES (?::uuid, ?::uuid) ON CONFLICT DO NOTHING";
+        try (Connection conn = ConexaoBD.conectar();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, professorId);
+            stmt.setString(2, escolaId);
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) { return false; }
+    }
+
+    public boolean desvincularEscola(String professorId, String escolaId) {
+        String sql = "DELETE FROM escola_professores WHERE professor_id = ?::uuid AND escola_id = ?::uuid";
+        try (Connection conn = ConexaoBD.conectar();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, professorId);
+            stmt.setString(2, escolaId);
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) { return false; }
     }
 }

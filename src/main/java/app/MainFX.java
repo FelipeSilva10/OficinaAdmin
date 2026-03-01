@@ -68,6 +68,10 @@ public class MainFX extends Application {
         root.setCenter(new EscolasView(this).getView());
     }
 
+    public void abrirDashboardEscola(Escola escola) {
+        root.setCenter(new EscolaDashboardView(this, escola).getView());
+    }
+
     public void abrirTurmas(Escola escolaSelecionada) {
         TurmasView turmasView = new TurmasView();
         root.setCenter(turmasView.getView());

@@ -3,14 +3,20 @@ package app;
 import core.Escola;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
+import javafx.stage.Modality;
 import javafx.stage.Stage;
+
+import java.util.Optional;
 
 public class MainFX {
 
@@ -29,6 +35,26 @@ public class MainFX {
 
         root.setTop(criarHeaderSistema());
         root.setLeft(criarSidebar());
+
+        abrirEscolas();
+        stage.getScene().setRoot(root);
+    }
+
+    private HBox criarHeaderSistema() {
+        Label lblTitulo = new Label("Oficina Admin");
+        lblTitulo.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #1f2d3d;");
+
+        Label lblSubtitulo = new Label("Painel administrativo");
+        lblSubtitulo.setStyle("-fx-text-fill: #6b7785;");
+
+        VBox blocoTitulo = new VBox(2, lblTitulo, lblSubtitulo);
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        Label lblHint = new Label("Duplo clique para abrir dashboards");
+        lblHint.setStyle("-fx-text-fill: #6b7785; -fx-font-size: 12px;");
+
 
         abrirEscolas();
         stage.getScene().setRoot(root);
@@ -123,6 +149,46 @@ public class MainFX {
         if (professoresView == null) professoresView = new ProfessoresView(this);
         return professoresView;
     }
+
+    private AlunosView getAlunosView() {
+        if (alunosView == null) alunosView = new AlunosView(this);
+        return alunosView;
+    }
+
+
+    public void configurarModal(Dialog<?> dialog) {
+        Stage owner = getStage();
+        boolean estavaFullscreen = owner != null && owner.isFullScreen();
+
+        if (owner != null) {
+            dialog.initOwner(owner);
+            dialog.initModality(Modality.WINDOW_MODAL);
+        }
+
+        dialog.setOnShown(event -> {
+            if (estavaFullscreen && owner != null) owner.setFullScreen(true);
+        });
+
+        dialog.setOnHidden(event -> {
+            if (estavaFullscreen && owner != null) owner.setFullScreen(true);
+            if (owner != null) owner.toFront();
+        });
+    }
+
+    public Optional<ButtonType> exibirAlerta(Alert alert) {
+        Stage owner = getStage();
+        boolean estavaFullscreen = owner != null && owner.isFullScreen();
+
+        if (owner != null) {
+            alert.initOwner(owner);
+            alert.initModality(Modality.WINDOW_MODAL);
+        }
+
+        Optional<ButtonType> resultado = alert.showAndWait();
+
+        if (estavaFullscreen && owner != null) owner.setFullScreen(true);
+        if (owner != null) owner.toFront();
+        return resultado;
 
     private AlunosView getAlunosView() {
         if (alunosView == null) alunosView = new AlunosView(this);

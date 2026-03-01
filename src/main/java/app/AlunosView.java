@@ -118,6 +118,7 @@ public class AlunosView {
         alert.setTitle("Confirmar exclusão");
         alert.setHeaderText("Deseja excluir o aluno?");
         alert.setContentText("Aluno: " + nomeAluno);
+        Optional<ButtonType> result = mainApp.exibirAlerta(alert);
         Optional<ButtonType> result = alert.showAndWait();
         return result.isPresent() && result.get() == ButtonType.OK;
     }
@@ -128,7 +129,7 @@ public class AlunosView {
 
     private void abrirModalNovoAluno() {
         Dialog<ButtonType> dialog = new Dialog<>();
-        dialog.initOwner(mainApp.getStage());
+        mainApp.configurarModal(dialog);
         dialog.setTitle("Cadastrar Aluno");
         dialog.setHeaderText("Crie as credenciais e defina a turma");
 
@@ -172,6 +173,7 @@ public class AlunosView {
             Turma turma = cbTurma.getValue();
 
             if (nome.isBlank() || email.isBlank() || senha.length() < 6 || turma == null) {
+                mainApp.exibirAlerta(new Alert(Alert.AlertType.WARNING, "Preencha tudo corretamente e selecione uma turma."));
                 new Alert(Alert.AlertType.WARNING, "Preencha tudo corretamente e selecione uma turma.").show();
                 event.consume();
                 return;
@@ -180,6 +182,7 @@ public class AlunosView {
             String novoId = SupabaseAuthDAO.criarUsuarioAuth(email, senha);
             if (novoId != null && alunoDAO.inserir(novoId, nome, turma.getId())) {
             } else {
+                mainApp.exibirAlerta(new Alert(Alert.AlertType.ERROR, "Erro: email em uso ou falha."));
                 new Alert(Alert.AlertType.ERROR, "Erro: email em uso ou falha.").show();
                 event.consume();
             }

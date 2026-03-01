@@ -77,19 +77,21 @@ public class TurmasView {
 
             deleteItem.setOnAction(event -> {
                 Turma turma = row.getItem();
-                if (turmaDAO.excluir(turma.getId())) {
-                    carregarTurmas(); // Recarrega a tabela
-                }
+                if (turmaDAO.excluir(turma.getId())) carregarTurmas();
             });
             contextMenu.getItems().add(deleteItem);
 
             row.emptyProperty().addListener((obs, wasEmpty, isNowEmpty) -> {
-                if (isNowEmpty) {
-                    row.setContextMenu(null);
-                } else {
-                    row.setContextMenu(contextMenu);
+                row.setContextMenu(isNowEmpty ? null : contextMenu);
+            });
+
+            // A MÁGICA DO DUPLO CLIQUE AQUI:
+            row.setOnMouseClicked(event -> {
+                if (event.getClickCount() == 2 && (!row.isEmpty())) {
+                    mainApp.abrirDashboardTurma(row.getItem());
                 }
             });
+
             return row;
         });
 

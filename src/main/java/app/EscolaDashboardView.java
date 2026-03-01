@@ -75,6 +75,29 @@ public class EscolaDashboardView {
 
         tabelaTurmas.getColumns().addAll(colNome, colAno, colProf);
 
+        tabelaTurmas.setRowFactory(tv -> {
+            TableRow<Turma> row = new TableRow<>();
+            ContextMenu cm = new ContextMenu();
+            MenuItem mi = new MenuItem("Excluir Turma");
+            mi.setStyle("-fx-text-fill: red;");
+            mi.setOnAction(evt -> {
+                if (turmaDAO.excluir(row.getItem().getId())) carregarDados();
+            });
+            cm.getItems().add(mi);
+            row.emptyProperty().addListener((obs, wasEmpty, isNowEmpty) -> {
+                row.setContextMenu(isNowEmpty ? null : cm);
+            });
+
+            // A MÁGICA DO DUPLO CLIQUE AQUI TAMBÉM:
+            row.setOnMouseClicked(event -> {
+                if (event.getClickCount() == 2 && (!row.isEmpty())) {
+                    mainApp.abrirDashboardTurma(row.getItem());
+                }
+            });
+
+            return row;
+        });
+
         // Quando clica numa turma, atualiza o painel da direita!
         tabelaTurmas.getSelectionModel().selectedItemProperty().addListener((obs, oldSel, newSel) -> {
             if (newSel != null) atualizarPainelDireito(newSel);

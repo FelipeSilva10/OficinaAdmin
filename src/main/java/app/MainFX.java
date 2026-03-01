@@ -27,19 +27,21 @@ public class MainFX {
         Label title = new Label("Menu Principal");
         title.setStyle("-fx-font-weight: bold; -fx-text-fill: #0366d6; -fx-padding: 0 0 15 0;");
 
-        Button btnEscolas = criarBotaoSidebar("🏢 Escolas");
-        Button btnTurmas = criarBotaoSidebar("📚 Turmas");
-        Button btnProfessores = criarBotaoSidebar("👨‍🏫 Professores");
-        Button btnSair = criarBotaoSidebar("🚪 Sair");
+        Button btnEscolas = criarBotaoSidebar("Escolas");
+        Button btnTurmas = criarBotaoSidebar("Turmas");
+        Button btnProfessores = criarBotaoSidebar("Professores");
+        Button btnAlunos = criarBotaoSidebar("Alunos");
+        Button btnSair = criarBotaoSidebar("Sair");
         btnSair.setStyle("-fx-text-fill: #cb2431; -fx-background-color: transparent; -fx-alignment: CENTER-LEFT;");
 
-        sidebar.getChildren().addAll(title, btnEscolas, btnTurmas, btnProfessores, btnSair);
+        sidebar.getChildren().addAll(title, btnEscolas, btnTurmas, btnProfessores, btnAlunos, btnSair);
         root.setLeft(sidebar);
 
         // Ao criar as Views, passamos o mainApp (this) para que elas possam usar o Stage para travar os Modais
         btnEscolas.setOnAction(e -> root.setCenter(new EscolasView(this).getView()));
         btnTurmas.setOnAction(e -> root.setCenter(new TurmasView(this).getView()));
         btnProfessores.setOnAction(e -> root.setCenter(new ProfessoresView(this).getView()));
+        btnAlunos.setOnAction(e -> root.setCenter(new AlunosView(this).getView()));
         btnSair.setOnAction(e -> sair());
 
         abrirEscolas();
@@ -56,14 +58,19 @@ public class MainFX {
     }
 
     public void abrirEscolas() { root.setCenter(new EscolasView(this).getView()); }
+
     public void abrirTurmas(Escola escola) {
         TurmasView tv = new TurmasView(this);
         root.setCenter(tv.getView());
         if (escola != null) tv.selecionarEscola(escola);
     }
+
+    public void abrirDashboardTurma(core.Turma turma) {
+        root.setCenter(new TurmaDashboardView(this, turma).getView());
+    }
+
     public void abrirDashboardEscola(Escola escola) { root.setCenter(new EscolaDashboardView(this, escola).getView()); }
 
-    // Devolve a janela principal para as modais ficarem presas a ela
     public Stage getStage() { return stage; }
 
     private void sair() {

@@ -40,26 +40,7 @@ public class MainFX {
         stage.getScene().setRoot(root);
     }
 
-    private HBox criarHeaderSistema() {
-        Label lblTitulo = new Label("Oficina Admin");
-        lblTitulo.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #1f2d3d;");
-
-        Label lblSubtitulo = new Label("Painel administrativo");
-        lblSubtitulo.setStyle("-fx-text-fill: #6b7785;");
-
-        VBox blocoTitulo = new VBox(2, lblTitulo, lblSubtitulo);
-
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
-
-        Label lblHint = new Label("Versão de testes");
-        lblHint.setStyle("-fx-text-fill: #6b7785; -fx-font-size: 12px;");
-
-
-        abrirEscolas();
-        stage.getScene().setRoot(root);
-    }
-
+    // FIX 1: Removed duplicate criarHeaderSistema() — kept only this correct version
     private HBox criarHeaderSistema() {
         Label lblTitulo = new Label("Oficina Admin");
         lblTitulo.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #1f2d3d;");
@@ -150,11 +131,11 @@ public class MainFX {
         return professoresView;
     }
 
+    // FIX 2: Removed duplicate getAlunosView() — kept only this one
     private AlunosView getAlunosView() {
         if (alunosView == null) alunosView = new AlunosView(this);
         return alunosView;
     }
-
 
     public void configurarModal(Dialog<?> dialog) {
         Stage owner = getStage();
@@ -189,11 +170,7 @@ public class MainFX {
         if (estavaFullscreen && owner != null) owner.setFullScreen(true);
         if (owner != null) owner.toFront();
         return resultado;
-
-    private AlunosView getAlunosView() {
-        if (alunosView == null) alunosView = new AlunosView(this);
-        return alunosView;
-    }
+    } // FIX 3: Added missing closing brace for exibirAlerta()
 
     public Stage getStage() {
         return stage;

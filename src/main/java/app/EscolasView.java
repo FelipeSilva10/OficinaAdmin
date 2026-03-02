@@ -10,10 +10,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.VBox;
+import javafx.scene.layout.*;
 
 import java.util.Optional;
 
@@ -23,8 +20,12 @@ public class EscolasView {
     private TableView<Escola> tabela;
     private EscolasDAO dao;
     private MainFX mainApp;
-
     private final ObservableList<Escola> dados = FXCollections.observableArrayList();
+
+    // Elementos do painel lateral
+    private VBox painelDetalhe;
+    private Label lblAcaoEscola;
+    private TextField txtNome;
 
     public EscolasView(MainFX mainApp) {
         this.mainApp = mainApp;
@@ -35,7 +36,6 @@ public class EscolasView {
 
     private void construirInterface() {
         view = new BorderPane();
-        view.setPadding(new Insets(20));
 
         Label lblTitulo = new Label("Gestão de Escolas");
         lblTitulo.setStyle("-fx-font-size: 22px; -fx-font-weight: bold;");
@@ -48,17 +48,20 @@ public class EscolasView {
         btnAtualizar.setOnAction(e -> carregarDados());
 
         Button btnNova = new Button("+ Cadastrar Escola");
-        btnNova.setStyle("-fx-background-color: #28a745; -fx-text-fill: white;");
-        btnNova.setOnAction(e -> abrirModalNovaEscola());
+        btnNova.setStyle("-fx-background-color: #28a745; -fx-text-fill: white; -fx-background-radius: 8; -fx-padding: 8 16; -fx-font-weight: bold;");
+        btnNova.setOnAction(e -> abrirFormNovo());
 
-        HBox header = new HBox(12, lblTitulo, txtBusca, btnAtualizar, btnNova);
-        HBox.setHgrow(txtBusca, Priority.NEVER);
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        HBox header = new HBox(12, lblTitulo, spacer, txtBusca, btnAtualizar, btnNova);
         header.setAlignment(Pos.CENTER_LEFT);
-        header.setPadding(new Insets(0, 0, 14, 0));
+        header.setPadding(new Insets(20, 20, 16, 20));
 
         tabela = new TableView<>();
         tabela.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
         tabela.setPlaceholder(new Label("Nenhuma escola encontrada."));
+        VBox.setVgrow(tabela, Priority.ALWAYS);
 
         TableColumn<Escola, String> colNome = new TableColumn<>("Nome da Escola");
         colNome.setCellValueFactory(new PropertyValueFactory<>("nome"));
@@ -93,9 +96,9 @@ public class EscolasView {
                 if (escola != null && confirmarExclusao(escola.getNome())) {
                     if (dao.excluir(escola.getId())) {
                         carregarDados();
+                        fecharDetalhe();
                     } else {
                         mainApp.exibirAlerta(new Alert(Alert.AlertType.ERROR, "Erro ao excluir. Verifique vínculos com turmas."));
-                        new Alert(Alert.AlertType.ERROR, "Erro ao excluir. Verifique vínculos com turmas.").show();
                     }
                 }
             });
@@ -106,12 +109,84 @@ public class EscolasView {
             row.setOnMouseClicked(event -> {
                 if (event.getClickCount() == 2 && (!row.isEmpty())) {
                     mainApp.abrirDashboardEscola(row.getItem());
+                } else if (event.getClickCount() == 1 && (!row.isEmpty())) {
+                    abrirDetalheEscola(row.getItem());
                 }
             });
             return row;
         });
 
-        view.setCenter(new VBox(header, tabela));
+        // ── Painel Detalhe Lateral ────────────────────────────────────────
+        painelDetalhe = new VBox(14);
+        painelDetalhe.setPadding(new Insets(24));
+        painelDetalhe.setStyle("-fx-background-color: white; -fx-border-color: #e2e8f0; -fx-border-width: 0 0 0 1;");
+        painelDetalhe.setMinWidth(300);
+        painelDetalhe.setMaxWidth(360);
+        painelDetalhe.setVisible(false);
+        painelDetalhe.setManaged(false);
+
+        Button btnFechar = new Button("Fechar");
+        btnFechar.setStyle("-fx-background-color: transparent; -fx-text-fill: #718096; -fx-cursor: hand;");
+        btnFechar.setOnAction(e -> fecharDetalhe());
+        HBox hdrD = new HBox(btnFechar);
+        hdrD.setAlignment(Pos.TOP_RIGHT);
+
+        lblAcaoEscola = new Label("Nova Escola");
+        lblAcaoEscola.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #1a202c;");
+
+        Label lblFormTitle = new Label("Dados da Escola");
+        lblFormTitle.setStyle("-fx-font-weight: bold; -fx-text-fill: #2d3748;");
+
+        txtNome = new TextField();
+        txtNome.setPromptText("Nome da Escola");
+
+        Button btnSalvar = new Button("Cadastrar Escola");
+        btnSalvar.setStyle("-fx-background-color: #28a745; -fx-text-fill: white; -fx-background-radius: 8; -fx-padding: 8 16; -fx-font-weight: bold;");
+        btnSalvar.setMaxWidth(Double.MAX_VALUE);
+        btnSalvar.setOnAction(e -> cadastrar());
+
+        painelDetalhe.getChildren().addAll(
+                hdrD, lblAcaoEscola, new Separator(),
+                lblFormTitle,
+                new Label("Nome:"), txtNome,
+                btnSalvar
+        );
+
+        VBox conteudoEsq = new VBox(header, tabela);
+        VBox.setVgrow(tabela, Priority.ALWAYS);
+        HBox mainLayout = new HBox(conteudoEsq, painelDetalhe);
+        HBox.setHgrow(conteudoEsq, Priority.ALWAYS);
+        view.setCenter(mainLayout);
+    }
+
+    private void abrirFormNovo() {
+        tabela.getSelectionModel().clearSelection();
+        lblAcaoEscola.setText("Nova Escola");
+        txtNome.clear();
+        mostrarDetalhe();
+    }
+
+    private void abrirDetalheEscola(Escola escola) {
+        lblAcaoEscola.setText("Detalhes da Escola");
+        txtNome.setText(escola.getNome());
+        // Aqui podemos desabilitar o botão salvar ou permitir atualização futuramente
+        mostrarDetalhe();
+    }
+
+    private void cadastrar() {
+        String nome = txtNome.getText().trim();
+        if (nome.isBlank()) {
+            new Alert(Alert.AlertType.WARNING, "Preencha o nome da escola.").showAndWait();
+            return;
+        }
+
+        if (dao.inserir(new Escola(nome, "ativo"))) {
+            txtNome.clear();
+            carregarDados();
+            fecharDetalhe();
+        } else {
+            new Alert(Alert.AlertType.ERROR, "Erro ao cadastrar escola.").showAndWait();
+        }
     }
 
     private boolean confirmarExclusao(String nomeEscola) {
@@ -123,23 +198,19 @@ public class EscolasView {
         return result.isPresent() && result.get() == ButtonType.OK;
     }
 
-    private void carregarDados() {
-        dados.setAll(dao.listarTodas());
+    private void mostrarDetalhe() {
+        painelDetalhe.setVisible(true);
+        painelDetalhe.setManaged(true);
     }
 
-    private void abrirModalNovaEscola() {
-        TextInputDialog dialog = new TextInputDialog();
-        mainApp.configurarModal(dialog);
-        dialog.initOwner(mainApp.getStage());
-        dialog.setTitle("Nova Escola");
-        dialog.setHeaderText("Cadastro rápido");
-        dialog.setContentText("Nome da Escola:");
+    private void fecharDetalhe() {
+        painelDetalhe.setVisible(false);
+        painelDetalhe.setManaged(false);
+        tabela.getSelectionModel().clearSelection();
+    }
 
-        dialog.showAndWait().ifPresent(nome -> {
-            if (!nome.isBlank()) {
-                if (dao.inserir(new Escola(nome.trim(), "ativo"))) carregarDados();
-            }
-        });
+    private void carregarDados() {
+        dados.setAll(dao.listarTodas());
     }
 
     public BorderPane getView() {

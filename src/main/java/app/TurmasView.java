@@ -12,10 +12,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.VBox;
+import javafx.scene.layout.*;
 
 import java.util.Optional;
 
@@ -23,12 +20,17 @@ public class TurmasView {
 
     private BorderPane view;
     private TableView<Turma> tabela;
-    private ComboBox<Escola> cbEscolas;
+    private ComboBox<Escola> cbEscolasFiltro;
     private TurmaDAO turmaDAO;
     private EscolasDAO escolasDAO;
     private MainFX mainApp;
-
     private final ObservableList<Turma> dados = FXCollections.observableArrayList();
+
+    // Elementos do painel lateral
+    private VBox painelDetalhe;
+    private Label lblAcaoTurma;
+    private TextField txtNome, txtAnoLetivo;
+    private ComboBox<Escola> cbEscolaForm;
 
     public TurmasView(MainFX mainApp) {
         this.mainApp = mainApp;
@@ -41,15 +43,14 @@ public class TurmasView {
 
     private void construirInterface() {
         view = new BorderPane();
-        view.setPadding(new Insets(20));
 
         Label lblTitulo = new Label("Gestão de Turmas");
         lblTitulo.setStyle("-fx-font-size: 22px; -fx-font-weight: bold;");
 
-        cbEscolas = new ComboBox<>();
-        cbEscolas.setPromptText("Filtrar por escola...");
-        cbEscolas.setPrefWidth(250);
-        cbEscolas.setOnAction(e -> carregarTurmas());
+        cbEscolasFiltro = new ComboBox<>();
+        cbEscolasFiltro.setPromptText("Filtrar por escola...");
+        cbEscolasFiltro.setPrefWidth(250);
+        cbEscolasFiltro.setOnAction(e -> carregarTurmas());
 
         TextField txtBusca = new TextField();
         txtBusca.setPromptText("Buscar turma/professor...");
@@ -59,17 +60,20 @@ public class TurmasView {
         btnAtualizar.setOnAction(e -> carregarTurmas());
 
         Button btnNova = new Button("+ Cadastrar Turma");
-        btnNova.setStyle("-fx-background-color: #28a745; -fx-text-fill: white;");
-        btnNova.setOnAction(e -> abrirModalNovaTurma());
+        btnNova.setStyle("-fx-background-color: #28a745; -fx-text-fill: white; -fx-background-radius: 8; -fx-padding: 8 16; -fx-font-weight: bold;");
+        btnNova.setOnAction(e -> abrirFormNovo());
 
-        HBox header = new HBox(12, lblTitulo, cbEscolas, txtBusca, btnAtualizar, btnNova);
-        HBox.setHgrow(txtBusca, Priority.NEVER);
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        HBox header = new HBox(12, lblTitulo, cbEscolasFiltro, spacer, txtBusca, btnAtualizar, btnNova);
         header.setAlignment(Pos.CENTER_LEFT);
-        header.setPadding(new Insets(0, 0, 20, 0));
+        header.setPadding(new Insets(20, 20, 16, 20));
 
         tabela = new TableView<>();
         tabela.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
         tabela.setPlaceholder(new Label("Nenhuma turma encontrada."));
+        VBox.setVgrow(tabela, Priority.ALWAYS);
 
         TableColumn<Turma, String> colNome = new TableColumn<>("Nome da Turma");
         colNome.setCellValueFactory(new PropertyValueFactory<>("nome"));
@@ -110,7 +114,10 @@ public class TurmasView {
             deleteItem.setOnAction(event -> {
                 Turma turma = row.getItem();
                 if (turma != null && confirmarExclusao(turma.getNome())) {
-                    if (turmaDAO.excluir(turma.getId())) carregarTurmas();
+                    if (turmaDAO.excluir(turma.getId())) {
+                        carregarTurmas();
+                        fecharDetalhe();
+                    }
                 }
             });
             contextMenu.getItems().add(deleteItem);
@@ -120,13 +127,115 @@ public class TurmasView {
             row.setOnMouseClicked(event -> {
                 if (event.getClickCount() == 2 && (!row.isEmpty())) {
                     mainApp.abrirDashboardTurma(row.getItem());
+                } else if (event.getClickCount() == 1 && (!row.isEmpty())) {
+                    abrirDetalheTurma(row.getItem());
                 }
             });
 
             return row;
         });
 
-        view.setCenter(new VBox(header, tabela));
+        // ── Painel Detalhe Lateral ────────────────────────────────────────
+        painelDetalhe = new VBox(14);
+        painelDetalhe.setPadding(new Insets(24));
+        painelDetalhe.setStyle("-fx-background-color: white; -fx-border-color: #e2e8f0; -fx-border-width: 0 0 0 1;");
+        painelDetalhe.setMinWidth(300);
+        painelDetalhe.setMaxWidth(360);
+        painelDetalhe.setVisible(false);
+        painelDetalhe.setManaged(false);
+
+        Button btnFechar = new Button("Fechar");
+        btnFechar.setStyle("-fx-background-color: transparent; -fx-text-fill: #718096; -fx-cursor: hand;");
+        btnFechar.setOnAction(e -> fecharDetalhe());
+        HBox hdrD = new HBox(btnFechar);
+        hdrD.setAlignment(Pos.TOP_RIGHT);
+
+        lblAcaoTurma = new Label("Nova Turma");
+        lblAcaoTurma.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #1a202c;");
+
+        Label lblFormTitle = new Label("Dados da Turma");
+        lblFormTitle.setStyle("-fx-font-weight: bold; -fx-text-fill: #2d3748;");
+
+        txtNome = new TextField();
+        txtNome.setPromptText("Ex: 1º Ano A");
+
+        txtAnoLetivo = new TextField("2026");
+        txtAnoLetivo.setPromptText("Ex: 2026");
+
+        cbEscolaForm = new ComboBox<>();
+        cbEscolaForm.setPromptText("Selecione a escola...");
+        cbEscolaForm.setMaxWidth(Double.MAX_VALUE);
+
+        Button btnSalvar = new Button("Cadastrar Turma");
+        btnSalvar.setStyle("-fx-background-color: #28a745; -fx-text-fill: white; -fx-background-radius: 8; -fx-padding: 8 16; -fx-font-weight: bold;");
+        btnSalvar.setMaxWidth(Double.MAX_VALUE);
+        btnSalvar.setOnAction(e -> cadastrar());
+
+        painelDetalhe.getChildren().addAll(
+                hdrD, lblAcaoTurma, new Separator(),
+                lblFormTitle,
+                new Label("Nome:"), txtNome,
+                new Label("Ano Letivo:"), txtAnoLetivo,
+                new Label("Escola:"), cbEscolaForm,
+                btnSalvar
+        );
+
+        VBox conteudoEsq = new VBox(header, tabela);
+        VBox.setVgrow(tabela, Priority.ALWAYS);
+        HBox mainLayout = new HBox(conteudoEsq, painelDetalhe);
+        HBox.setHgrow(conteudoEsq, Priority.ALWAYS);
+        view.setCenter(mainLayout);
+    }
+
+    private void abrirFormNovo() {
+        tabela.getSelectionModel().clearSelection();
+        lblAcaoTurma.setText("Nova Turma");
+        txtNome.clear();
+        txtAnoLetivo.setText("2026");
+        cbEscolaForm.getItems().setAll(escolasDAO.listarTodas());
+
+        // Se já tiver uma escola filtrada no topo, pré-selecionar ela no formulário
+        if(cbEscolasFiltro.getValue() != null) {
+            cbEscolaForm.setValue(cbEscolasFiltro.getValue());
+        } else {
+            cbEscolaForm.getSelectionModel().clearSelection();
+        }
+
+        mostrarDetalhe();
+    }
+
+    private void abrirDetalheTurma(Turma turma) {
+        lblAcaoTurma.setText("Detalhes: " + turma.getNome());
+        txtNome.setText(turma.getNome());
+        txtAnoLetivo.setText(turma.getAnoLetivo());
+
+        cbEscolaForm.getItems().setAll(escolasDAO.listarTodas());
+        for (Escola e : cbEscolaForm.getItems()) {
+            if (e.getId().equals(turma.getEscolaId())) {
+                cbEscolaForm.setValue(e);
+                break;
+            }
+        }
+        mostrarDetalhe();
+    }
+
+    private void cadastrar() {
+        String nome = txtNome.getText().trim();
+        String ano = txtAnoLetivo.getText().trim();
+        Escola escola = cbEscolaForm.getValue();
+
+        if (nome.isBlank() || ano.isBlank() || escola == null) {
+            new Alert(Alert.AlertType.WARNING, "Preencha o nome, ano letivo e selecione uma escola.").showAndWait();
+            return;
+        }
+
+        if (turmaDAO.inserir(escola.getId(), nome, ano)) {
+            txtNome.clear();
+            carregarTurmas();
+            fecharDetalhe();
+        } else {
+            new Alert(Alert.AlertType.ERROR, "Erro ao cadastrar a turma.").showAndWait();
+        }
     }
 
     private boolean confirmarExclusao(String nomeTurma) {
@@ -138,12 +247,23 @@ public class TurmasView {
         return result.isPresent() && result.get() == ButtonType.OK;
     }
 
+    private void mostrarDetalhe() {
+        painelDetalhe.setVisible(true);
+        painelDetalhe.setManaged(true);
+    }
+
+    private void fecharDetalhe() {
+        painelDetalhe.setVisible(false);
+        painelDetalhe.setManaged(false);
+        tabela.getSelectionModel().clearSelection();
+    }
+
     private void carregarEscolas() {
-        cbEscolas.getItems().setAll(escolasDAO.listarTodas());
+        cbEscolasFiltro.getItems().setAll(escolasDAO.listarTodas());
     }
 
     private void carregarTurmas() {
-        Escola selecionada = cbEscolas.getValue();
+        Escola selecionada = cbEscolasFiltro.getValue();
         if (selecionada == null) {
             dados.setAll(turmaDAO.listarTodas());
         } else {
@@ -151,34 +271,10 @@ public class TurmasView {
         }
     }
 
-    private void abrirModalNovaTurma() {
-        Escola selecionada = cbEscolas.getValue();
-        if (selecionada == null) {
-            mainApp.exibirAlerta(new Alert(Alert.AlertType.WARNING, "Selecione uma escola primeiro."));
-            new Alert(Alert.AlertType.WARNING, "Selecione uma escola primeiro.").show();
-            return;
-        }
-
-        TextInputDialog dialog = new TextInputDialog();
-        mainApp.configurarModal(dialog);
-        dialog.initOwner(mainApp.getStage());
-        dialog.setTitle("Nova Turma");
-        dialog.setHeaderText("Cadastro rápido");
-        dialog.setContentText("Nome da Turma:");
-
-        dialog.showAndWait().ifPresent(nome -> {
-            if (!nome.isBlank()) {
-                if (turmaDAO.inserir(selecionada.getId(), nome.trim(), "2026")) {
-                    carregarTurmas();
-                }
-            }
-        });
-    }
-
     public void selecionarEscola(Escola escolaAlvo) {
-        for (Escola e : cbEscolas.getItems()) {
+        for (Escola e : cbEscolasFiltro.getItems()) {
             if (e.getId().equals(escolaAlvo.getId())) {
-                cbEscolas.getSelectionModel().select(e);
+                cbEscolasFiltro.getSelectionModel().select(e);
                 carregarTurmas();
                 break;
             }

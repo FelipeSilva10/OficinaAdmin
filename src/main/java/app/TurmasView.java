@@ -135,7 +135,6 @@ public class TurmasView {
         alert.setHeaderText("Deseja excluir a turma?");
         alert.setContentText("Turma: " + nomeTurma);
         Optional<ButtonType> result = mainApp.exibirAlerta(alert);
-        Optional<ButtonType> result = alert.showAndWait();
         return result.isPresent() && result.get() == ButtonType.OK;
     }
 

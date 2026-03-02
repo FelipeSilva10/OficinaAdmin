@@ -119,7 +119,6 @@ public class AlunosView {
         alert.setHeaderText("Deseja excluir o aluno?");
         alert.setContentText("Aluno: " + nomeAluno);
         Optional<ButtonType> result = mainApp.exibirAlerta(alert);
-        Optional<ButtonType> result = alert.showAndWait();
         return result.isPresent() && result.get() == ButtonType.OK;
     }
 

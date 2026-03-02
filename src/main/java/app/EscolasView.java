@@ -120,7 +120,6 @@ public class EscolasView {
         alert.setHeaderText("Deseja excluir a escola?");
         alert.setContentText("Escola: " + nomeEscola);
         Optional<ButtonType> result = mainApp.exibirAlerta(alert);
-        Optional<ButtonType> result = alert.showAndWait();
         return result.isPresent() && result.get() == ButtonType.OK;
     }
 

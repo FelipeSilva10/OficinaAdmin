@@ -1,140 +1,206 @@
 package app;
 
 import core.Professor;
+import core.Turma;
 import dao.ProfessorDAO;
 import dao.SupabaseAuthDAO;
+import dao.TurmaDAO;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.collections.transformation.SortedList;
-import javafx.event.ActionEvent;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.VBox;
+import javafx.scene.layout.*;
 
 public class ProfessoresView {
 
     private BorderPane view;
     private TableView<Professor> tabela;
+    private TableView<Turma> tabelaTurmas;
     private ProfessorDAO professorDAO;
+    private TurmaDAO turmaDAO;
     private MainFX mainApp;
-
     private final ObservableList<Professor> dados = FXCollections.observableArrayList();
+
+    private VBox painelDetalhe;
+    private Label lblNomeProf;
+    private TextField txtNome, txtEmail;
+    private PasswordField txtSenha;
+    private Label lblSecaoTurmas;
 
     public ProfessoresView(MainFX mainApp) {
         this.mainApp = mainApp;
         professorDAO = new ProfessorDAO();
+        turmaDAO = new TurmaDAO();
         construirInterface();
         carregarDados();
     }
 
     private void construirInterface() {
         view = new BorderPane();
-        view.setPadding(new Insets(20));
 
-        Label lblTitulo = new Label("Gestão de Professores");
-        lblTitulo.setStyle("-fx-font-size: 22px; -fx-font-weight: bold;");
+        Label lblTitulo = new Label("Professores");
+        lblTitulo.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #1a202c;");
 
         TextField txtBusca = new TextField();
-        txtBusca.setPromptText("Buscar por nome/id...");
-        txtBusca.setPrefWidth(250);
+        txtBusca.setPromptText("Buscar professor...");
+        txtBusca.setPrefWidth(220);
 
         Button btnAtualizar = new Button("Atualizar");
         btnAtualizar.setOnAction(e -> carregarDados());
 
-        Button btnNovo = new Button("+ Cadastrar Novo");
-        btnNovo.setStyle("-fx-background-color: #0366d6; -fx-text-fill: white;");
-        btnNovo.setOnAction(e -> abrirModalNovoProfessor());
+        Button btnNovo = new Button("+ Cadastrar Professor");
+        btnNovo.setStyle("-fx-background-color: #3182ce; -fx-text-fill: white; -fx-background-radius: 8; -fx-padding: 8 16; -fx-font-weight: bold;");
+        btnNovo.setOnAction(e -> abrirFormNovo());
 
-        HBox header = new HBox(12, lblTitulo, txtBusca, btnAtualizar, btnNovo);
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        HBox header = new HBox(12, lblTitulo, spacer, txtBusca, btnAtualizar, btnNovo);
         header.setAlignment(Pos.CENTER_LEFT);
-        header.setPadding(new Insets(0, 0, 20, 0));
+        header.setPadding(new Insets(20, 20, 16, 20));
 
         tabela = new TableView<>();
         tabela.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-        tabela.setPlaceholder(new Label("Nenhum professor encontrado."));
+        tabela.setPlaceholder(new Label("Nenhum professor cadastrado."));
+        VBox.setVgrow(tabela, Priority.ALWAYS);
 
-        TableColumn<Professor, String> colNome = new TableColumn<>("Nome do Professor");
+        TableColumn<Professor, String> colNome = new TableColumn<>("Nome");
         colNome.setCellValueFactory(new PropertyValueFactory<>("nome"));
-
-        TableColumn<Professor, String> colId = new TableColumn<>("ID de Acesso (Auth)");
+        TableColumn<Professor, String> colId = new TableColumn<>("ID Auth");
         colId.setCellValueFactory(new PropertyValueFactory<>("id"));
-        colId.setStyle("-fx-font-family: monospace; -fx-font-size: 13px; -fx-text-fill: gray;");
-
+        colId.setStyle("-fx-font-family: monospace; -fx-text-fill: #718096;");
         tabela.getColumns().addAll(colNome, colId);
 
         FilteredList<Professor> filtrado = new FilteredList<>(dados, p -> true);
         txtBusca.textProperty().addListener((obs, old, term) -> {
-            String filtro = term == null ? "" : term.trim().toLowerCase();
-            filtrado.setPredicate(prof -> {
-                if (filtro.isBlank()) return true;
-                return prof.getNome().toLowerCase().contains(filtro)
-                        || prof.getId().toLowerCase().contains(filtro);
-            });
+            String f = term == null ? "" : term.trim().toLowerCase();
+            filtrado.setPredicate(p -> f.isBlank()
+                    || p.getNome().toLowerCase().contains(f)
+                    || p.getId().toLowerCase().contains(f));
         });
-
         SortedList<Professor> ordenado = new SortedList<>(filtrado);
         ordenado.comparatorProperty().bind(tabela.comparatorProperty());
         tabela.setItems(ordenado);
 
-        view.setCenter(new VBox(header, tabela));
-    }
-
-    private void carregarDados() {
-        dados.setAll(professorDAO.listarTodos());
-    }
-
-    private void abrirModalNovoProfessor() {
-        Dialog<ButtonType> dialog = new Dialog<>();
-        mainApp.configurarModal(dialog);
-        dialog.initOwner(mainApp.getStage());
-
-        dialog.setTitle("Cadastro Global");
-        dialog.setHeaderText("Cadastre as credenciais do Professor");
-
-        TextField txtNome = new TextField();
-        txtNome.setPromptText("Nome Completo");
-        TextField txtEmail = new TextField();
-        txtEmail.setPromptText("E-mail");
-        PasswordField txtSenha = new PasswordField();
-        txtSenha.setPromptText("Min. 6 caracteres");
-
-        VBox form = new VBox(10, new Label("Nome:"), txtNome, new Label("E-mail:"), txtEmail, new Label("Senha:"), txtSenha);
-        dialog.getDialogPane().setContent(form);
-        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
-
-        Button btOk = (Button) dialog.getDialogPane().lookupButton(ButtonType.OK);
-        btOk.addEventFilter(ActionEvent.ACTION, event -> {
-            String nome = txtNome.getText();
-            String email = txtEmail.getText();
-            String senha = txtSenha.getText();
-
-            if (nome.isBlank() || email.isBlank() || senha.length() < 6) {
-                mainApp.exibirAlerta(new Alert(Alert.AlertType.WARNING, "Preencha tudo corretamente (senha mínima de 6 caracteres)."));
-                new Alert(Alert.AlertType.WARNING, "Preencha tudo corretamente (senha mínima de 6 caracteres).").show();
-                event.consume();
-                return;
-            }
-
-            String novoId = SupabaseAuthDAO.criarUsuarioAuth(email, senha);
-            if (novoId != null && professorDAO.inserir(novoId, nome)) {
-            } else {
-                mainApp.exibirAlerta(new Alert(Alert.AlertType.ERROR, "Erro: email em uso ou falha de rede."));
-                new Alert(Alert.AlertType.ERROR, "Erro: email em uso ou falha de rede.").show();
-                event.consume();
-            }
+        tabela.getSelectionModel().selectedItemProperty().addListener((obs, old, p) -> {
+            if (p != null) abrirDetalheProf(p);
         });
 
-        dialog.showAndWait().ifPresent(res -> {
-            if (res == ButtonType.OK) carregarDados();
+        // ── Painel Detalhe ────────────────────────────────────────
+        painelDetalhe = new VBox(14);
+        painelDetalhe.setPadding(new Insets(24));
+        painelDetalhe.setStyle("-fx-background-color: white; -fx-border-color: #e2e8f0; -fx-border-width: 0 0 0 1;");
+        painelDetalhe.setMinWidth(300);
+        painelDetalhe.setMaxWidth(360);
+        painelDetalhe.setVisible(false);
+        painelDetalhe.setManaged(false);
+
+        Button btnFechar = new Button("Fechar");
+        btnFechar.setStyle("-fx-background-color: transparent; -fx-text-fill: #718096; -fx-cursor: hand;");
+        btnFechar.setOnAction(e -> fecharDetalhe());
+        HBox hdrD = new HBox(btnFechar);
+        hdrD.setAlignment(Pos.TOP_RIGHT);
+
+        lblNomeProf = new Label("Novo Professor");
+        lblNomeProf.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #1a202c;");
+
+        Label lblFormTitle = new Label("Dados de Acesso");
+        lblFormTitle.setStyle("-fx-font-weight: bold; -fx-text-fill: #2d3748;");
+
+        txtNome = new TextField(); txtNome.setPromptText("Nome completo");
+        txtEmail = new TextField(); txtEmail.setPromptText("E-mail");
+        txtSenha = new PasswordField(); txtSenha.setPromptText("Senha (mín. 6 caracteres)");
+
+        Button btnSalvar = new Button("Cadastrar Professor");
+        btnSalvar.setStyle("-fx-background-color: #3182ce; -fx-text-fill: white; -fx-background-radius: 8; -fx-padding: 8 16; -fx-font-weight: bold;");
+        btnSalvar.setMaxWidth(Double.MAX_VALUE);
+        btnSalvar.setOnAction(e -> cadastrar());
+
+        lblSecaoTurmas = new Label("Turmas deste Professor");
+        lblSecaoTurmas.setStyle("-fx-font-weight: bold; -fx-text-fill: #2d3748;");
+        lblSecaoTurmas.setVisible(false); lblSecaoTurmas.setManaged(false);
+
+        tabelaTurmas = new TableView<>();
+        tabelaTurmas.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        tabelaTurmas.setPlaceholder(new Label("Sem turmas atribuídas."));
+        tabelaTurmas.setPrefHeight(200);
+        tabelaTurmas.setVisible(false); tabelaTurmas.setManaged(false);
+
+        TableColumn<Turma, String> colTNome = new TableColumn<>("Turma");
+        colTNome.setCellValueFactory(new PropertyValueFactory<>("nome"));
+        TableColumn<Turma, String> colTEscola = new TableColumn<>("Escola");
+        colTEscola.setCellValueFactory(new PropertyValueFactory<>("escolaNome"));
+        tabelaTurmas.getColumns().addAll(colTNome, colTEscola);
+
+        tabelaTurmas.setRowFactory(tv -> {
+            TableRow<Turma> row = new TableRow<>();
+            row.setOnMouseClicked(ev -> {
+                if (ev.getClickCount() == 2 && !row.isEmpty())
+                    mainApp.abrirDashboardTurma(row.getItem());
+            });
+            return row;
         });
+
+        painelDetalhe.getChildren().addAll(
+                hdrD, lblNomeProf, new Separator(),
+                lblFormTitle, txtNome, txtEmail, txtSenha, btnSalvar,
+                new Separator(), lblSecaoTurmas, tabelaTurmas
+        );
+
+        VBox conteudoEsq = new VBox(header, tabela);
+        VBox.setVgrow(tabela, Priority.ALWAYS);
+        HBox mainLayout = new HBox(conteudoEsq, painelDetalhe);
+        HBox.setHgrow(conteudoEsq, Priority.ALWAYS);
+        view.setCenter(mainLayout);
     }
 
-    public BorderPane getView() {
-        return view;
+    private void abrirFormNovo() {
+        tabela.getSelectionModel().clearSelection();
+        lblNomeProf.setText("Novo Professor");
+        txtNome.clear(); txtEmail.clear(); txtSenha.clear();
+        setSecaoTurmasVisivel(false);
+        mostrarDetalhe();
     }
+
+    private void abrirDetalheProf(Professor prof) {
+        lblNomeProf.setText(prof.getNome());
+        txtNome.clear(); txtEmail.clear(); txtSenha.clear();
+        setSecaoTurmasVisivel(true);
+        tabelaTurmas.getItems().setAll(turmaDAO.listarPorProfessor(prof.getId()));
+        mostrarDetalhe();
+    }
+
+    private void setSecaoTurmasVisivel(boolean v) {
+        lblSecaoTurmas.setVisible(v); lblSecaoTurmas.setManaged(v);
+        tabelaTurmas.setVisible(v); tabelaTurmas.setManaged(v);
+    }
+
+    private void cadastrar() {
+        String nome = txtNome.getText().trim();
+        String email = txtEmail.getText().trim();
+        String senha = txtSenha.getText();
+        if (nome.isBlank() || email.isBlank() || senha.length() < 6) {
+            new Alert(Alert.AlertType.WARNING, "Preencha todos os campos. Senha mínima: 6 caracteres.").showAndWait();
+            return;
+        }
+        String novoId = SupabaseAuthDAO.criarUsuarioAuth(email, senha);
+        if (novoId != null && professorDAO.inserir(novoId, nome)) {
+            txtNome.clear(); txtEmail.clear(); txtSenha.clear();
+            carregarDados(); fecharDetalhe();
+        } else {
+            new Alert(Alert.AlertType.ERROR, "Erro: e-mail já em uso ou falha de rede.").showAndWait();
+        }
+    }
+
+    private void mostrarDetalhe() { painelDetalhe.setVisible(true); painelDetalhe.setManaged(true); }
+    private void fecharDetalhe() {
+        painelDetalhe.setVisible(false); painelDetalhe.setManaged(false);
+        tabela.getSelectionModel().clearSelection();
+    }
+    private void carregarDados() { dados.setAll(professorDAO.listarTodos()); }
+    public BorderPane getView() { return view; }
 }

@@ -53,8 +53,8 @@ public class MainFX {
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        Label lblHint = new Label("Duplo clique para abrir dashboards");
-        lblHint.setStyle("-fx-text-fill: #6b7785; -fx-font-size: 12px;");
+        Label lblHint = new Label("Versão Alpha");
+        lblHint.setStyle("-fx-text-fill: #6b7785; -fx-font-size: 15px;");
 
         HBox header = new HBox(12, blocoTitulo, spacer, lblHint);
         header.setPadding(new Insets(12, 20, 12, 20));

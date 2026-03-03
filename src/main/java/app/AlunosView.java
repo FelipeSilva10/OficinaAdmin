@@ -27,7 +27,7 @@ public class AlunosView {
     private MainFX mainApp;
     private final ObservableList<Aluno> dados = FXCollections.observableArrayList();
 
-    private Aluno alunoSelecionado; // Variável de controle (Novo ou Editar)
+    private Aluno alunoSelecionado;
 
     private VBox painelDetalhe;
     private Label lblNomeAluno;
@@ -80,7 +80,6 @@ public class AlunosView {
         TableColumn<Aluno, String> colNome = new TableColumn<>("Nome");
         colNome.setCellValueFactory(new PropertyValueFactory<>("nome"));
 
-        // Adicionando E-mail e Senha
         TableColumn<Aluno, String> colEmail = new TableColumn<>("E-mail");
         colEmail.setCellValueFactory(new PropertyValueFactory<>("email"));
 
@@ -108,24 +107,15 @@ public class AlunosView {
         ordenado.comparatorProperty().bind(tabela.comparatorProperty());
         tabela.setItems(ordenado);
 
-        // ✅ LISTENER ÚNICO - Consolidado
         tabela.getSelectionModel().selectedItemProperty().addListener((obs, old, a) -> {
             if (a != null) {
-                // 1. Abre o painel de edição
                 abrirDetalheAluno(a);
-
-                // 2. Mostra botão "Ir para Turma"
                 btnVerTurma.setVisible(true);
                 btnVerTurma.setManaged(true);
                 lblDetalheInfo.setVisible(true);
                 lblDetalheInfo.setManaged(true);
-
-                // 3. Define ação do botão
-                btnVerTurma.setOnAction(ev -> {
-                    mainApp.abrirTurmas(null);
-                });
+                btnVerTurma.setOnAction(ev -> mainApp.abrirTurmas(null));
             } else {
-                // Esconde quando nada selecionado
                 btnVerTurma.setVisible(false);
                 btnVerTurma.setManaged(false);
                 lblDetalheInfo.setVisible(false);
@@ -139,12 +129,16 @@ public class AlunosView {
             MenuItem miDel = new MenuItem("Excluir Aluno");
             miDel.setStyle("-fx-text-fill: red;");
 
-            // Exclui direto sem Alert de confirmação
             miDel.setOnAction(e -> {
                 Aluno a = row.getItem();
-                if (a != null && alunoDAO.excluir(a.getId())) {
-                    carregarDados();
-                    fecharDetalhe();
+                if (a != null) {
+                    if(alunoDAO.excluir(a.getId())) {
+                        mainApp.mostrarAviso("Aluno removido com sucesso!", false);
+                        carregarDados();
+                        fecharDetalhe();
+                    } else {
+                        mainApp.mostrarAviso("Erro ao excluir aluno.", true);
+                    }
                 }
             });
             cm.getItems().add(miDel);
@@ -152,7 +146,6 @@ public class AlunosView {
             return row;
         });
 
-        // ── Painel Detalhe ────────────────────────────────────────
         painelDetalhe = new VBox(14);
         painelDetalhe.setPadding(new Insets(24));
         painelDetalhe.setStyle("-fx-background-color: white; -fx-border-color: #e2e8f0; -fx-border-width: 0 0 0 1;");
@@ -170,7 +163,6 @@ public class AlunosView {
         lblNomeAluno = new Label("Novo Aluno");
         lblNomeAluno.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #1a202c;");
 
-        // Info do aluno selecionado (escola + turma)
         lblDetalheInfo = new Label();
         lblDetalheInfo.setStyle("-fx-text-fill: #718096; -fx-font-size: 13px;");
         lblDetalheInfo.setWrapText(true);
@@ -229,7 +221,6 @@ public class AlunosView {
         btnSalvar.setMaxWidth(Double.MAX_VALUE);
         btnSalvar.setOnAction(e -> cadastrar());
 
-        // Botão "Ver Turma" (só aparece quando aluno selecionado)
         btnVerTurma = new Button("Ir para Turma");
         btnVerTurma.setStyle("-fx-background-color: #e2e8f0; -fx-text-fill: #2d3748; -fx-background-radius: 8; -fx-padding: 8 16;");
         btnVerTurma.setMaxWidth(Double.MAX_VALUE);
@@ -258,18 +249,18 @@ public class AlunosView {
 
     private void abrirFormNovo() {
         tabela.getSelectionModel().clearSelection();
-        alunoSelecionado = null; // Reseta seleção
+        alunoSelecionado = null;
         lblNomeAluno.setText("Novo Aluno");
         btnSalvar.setText("Cadastrar Aluno");
         txtNome.clear(); txtEmail.clear(); txtSenha.clear();
-        txtEmail.setDisable(false); // Libera o email para ser digitado na criação
+        txtEmail.setDisable(false);
         cbEscola.getItems().setAll(escolasDAO.listarTodas());
         cbTurma.getItems().clear(); cbTurma.setDisable(true);
         mostrarDetalhe();
     }
 
     private void abrirDetalheAluno(Aluno aluno) {
-        alunoSelecionado = aluno; // Define o aluno a ser editado
+        alunoSelecionado = aluno;
         lblNomeAluno.setText("Editar: " + aluno.getNome());
         btnSalvar.setText("Salvar Alterações");
 
@@ -278,9 +269,8 @@ public class AlunosView {
         txtNome.setText(aluno.getNome());
         txtEmail.setText(aluno.getEmail());
         txtSenha.setText(aluno.getSenha());
-        txtEmail.setDisable(true); // Impede de editar o e-mail depois de criado para não causar conflitos com Supabase
+        txtEmail.setDisable(true);
 
-        // Povoar e auto-selecionar ComboBoxes
         cbEscola.getItems().setAll(escolasDAO.listarTodas());
         Escola escolaMatch = null;
         for (Escola e : cbEscola.getItems()) {
@@ -314,27 +304,35 @@ public class AlunosView {
         Turma turma = cbTurma.getValue();
 
         if (nome.isBlank() || email.isBlank() || senha.length() < 6 || turma == null) {
-            new Alert(Alert.AlertType.WARNING, "Preencha tudo e selecione uma turma (Senha mínima 6 caracteres).").showAndWait();
+            mainApp.mostrarAviso("Preencha tudo e selecione uma turma (Senha min. 6).", true);
             return;
         }
 
         // Novo Aluno
         if (alunoSelecionado == null) {
             String novoId = SupabaseAuthDAO.criarUsuarioAuth(email, senha);
-            if (novoId != null && alunoDAO.inserir(novoId, nome, email, senha, turma.getId())) {
-                txtNome.clear(); txtEmail.clear(); txtSenha.clear();
-                carregarDados(); fecharDetalhe();
+            if (novoId != null) {
+                if (alunoDAO.inserir(novoId, nome, email, senha, turma.getId())) {
+                    mainApp.mostrarAviso("Aluno cadastrado com sucesso!", false);
+                    txtNome.clear(); txtEmail.clear(); txtSenha.clear();
+                    carregarDados(); fecharDetalhe();
+                } else {
+                    // ROLLBACK: Deleta do Auth se o banco falhou
+                    SupabaseAuthDAO.deletarUsuarioAuth(novoId);
+                    mainApp.mostrarAviso("Erro de banco de dados. Tente novamente.", true);
+                }
             } else {
-                new Alert(Alert.AlertType.ERROR, "Erro: e-mail já em uso ou falha de rede.").showAndWait();
+                mainApp.mostrarAviso("E-mail já cadastrado no sistema!", true);
             }
         }
         // Atualizar Aluno Existente
         else {
             if (alunoDAO.atualizar(alunoSelecionado.getId(), nome, email, senha, turma.getId())) {
+                mainApp.mostrarAviso("Aluno atualizado com sucesso!", false);
                 txtNome.clear(); txtEmail.clear(); txtSenha.clear();
                 carregarDados(); fecharDetalhe();
             } else {
-                new Alert(Alert.AlertType.ERROR, "Erro ao atualizar aluno.").showAndWait();
+                mainApp.mostrarAviso("Erro ao atualizar aluno.", true);
             }
         }
     }
@@ -344,7 +342,7 @@ public class AlunosView {
     private void fecharDetalhe() {
         painelDetalhe.setVisible(false); painelDetalhe.setManaged(false);
         tabela.getSelectionModel().clearSelection();
-        alunoSelecionado = null; // Limpa ao fechar
+        alunoSelecionado = null;
     }
 
     private void carregarDados() { dados.setAll(alunoDAO.listarTodos()); }

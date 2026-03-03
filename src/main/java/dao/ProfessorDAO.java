@@ -12,7 +12,8 @@ import java.util.List;
 public class ProfessorDAO {
 
     public boolean inserir(String authId, String nome, String email, String senha) {
-        String sql = "INSERT INTO perfis (id, nome, email, senha, role) VALUES (?::uuid, ?, ?, ?, 'teacher')";
+        String sql = "INSERT INTO perfis (id, nome, email, senha, role) VALUES (?::uuid, ?, ?, ?, 'teacher') " +
+                "ON CONFLICT (id) DO UPDATE SET nome = EXCLUDED.nome, email = EXCLUDED.email, senha = EXCLUDED.senha, role = EXCLUDED.role";
         try (Connection conn = ConexaoBD.conectar();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, authId);
@@ -51,14 +52,14 @@ public class ProfessorDAO {
         try (Connection conn = ConexaoBD.conectar();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, id);
-            return stmt.executeUpdate() > 0;
+            stmt.executeUpdate(); // Ignora linhas afetadas (Cascade)
+            return true;
         } catch (SQLException e) {
             System.err.println("Erro ao excluir professor: " + e.getMessage());
             return false;
         }
     }
 
-    // ✅ CORRIGIDO: ORDER BY nome em vez de created_at (evita erro se coluna não existir)
     public List<Professor> listarTodos() {
         List<Professor> lista = new ArrayList<>();
         String sql = "SELECT id, nome, email, senha FROM perfis WHERE role = 'teacher' ORDER BY nome ASC";

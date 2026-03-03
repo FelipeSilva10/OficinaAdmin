@@ -22,15 +22,14 @@ public class TurmasView {
     private TurmaDAO turmaDAO;
     private EscolasDAO escolasDAO;
     private MainFX mainApp;
-    private Turma turmaSelecionada; // Variável de controle para saber se é edição ou novo
+    private Turma turmaSelecionada;
     private final ObservableList<Turma> dados = FXCollections.observableArrayList();
 
-    // Elementos do painel lateral
     private VBox painelDetalhe;
     private Label lblAcaoTurma;
     private TextField txtNome, txtAnoLetivo;
     private ComboBox<Escola> cbEscolaForm;
-    private Button btnSalvar; // Declarado aqui para podermos alterar o texto dinamicamente
+    private Button btnSalvar;
 
     public TurmasView(MainFX mainApp) {
         this.mainApp = mainApp;
@@ -113,10 +112,14 @@ public class TurmasView {
 
             deleteItem.setOnAction(event -> {
                 Turma turma = row.getItem();
-                // Exclusão direta, sem confirmação
-                if (turma != null && turmaDAO.excluir(turma.getId())) {
-                    carregarTurmas();
-                    fecharDetalhe();
+                if (turma != null) {
+                    if(turmaDAO.excluir(turma.getId())) {
+                        mainApp.mostrarAviso("Turma excluída com sucesso!", false);
+                        carregarTurmas();
+                        fecharDetalhe();
+                    } else {
+                        mainApp.mostrarAviso("Erro ao excluir. Verifique vínculos.", true);
+                    }
                 }
             });
             contextMenu.getItems().add(deleteItem);
@@ -124,20 +127,15 @@ public class TurmasView {
             row.emptyProperty().addListener((obs, wasEmpty, isNowEmpty) -> row.setContextMenu(isNowEmpty ? null : contextMenu));
 
             row.setOnMouseClicked(event -> {
-                // Duplo clique vai para o Dashboard da Turma
                 if (event.getClickCount() == 2 && (!row.isEmpty())) {
                     mainApp.abrirDashboardTurma(row.getItem());
-                }
-                // Um clique abre o painel de edição
-                else if (event.getClickCount() == 1 && (!row.isEmpty())) {
+                } else if (event.getClickCount() == 1 && (!row.isEmpty())) {
                     abrirDetalheTurma(row.getItem());
                 }
             });
-
             return row;
         });
 
-        // ── Painel Detalhe Lateral ────────────────────────────────────────
         painelDetalhe = new VBox(14);
         painelDetalhe.setPadding(new Insets(24));
         painelDetalhe.setStyle("-fx-background-color: white; -fx-border-color: #e2e8f0; -fx-border-width: 0 0 0 1;");
@@ -191,9 +189,9 @@ public class TurmasView {
 
     private void abrirFormNovo() {
         tabela.getSelectionModel().clearSelection();
-        turmaSelecionada = null; // Reseta seleção
+        turmaSelecionada = null;
         lblAcaoTurma.setText("Nova Turma");
-        btnSalvar.setText("Cadastrar Turma"); // Muda texto do botão
+        btnSalvar.setText("Cadastrar Turma");
         txtNome.clear();
         txtAnoLetivo.setText("2026");
         cbEscolaForm.getItems().setAll(escolasDAO.listarTodas());
@@ -208,9 +206,9 @@ public class TurmasView {
     }
 
     private void abrirDetalheTurma(Turma turma) {
-        turmaSelecionada = turma; // Guarda a turma que está sendo editada
+        turmaSelecionada = turma;
         lblAcaoTurma.setText("Editar Turma");
-        btnSalvar.setText("Salvar Alterações"); // Muda texto do botão
+        btnSalvar.setText("Salvar Alterações");
         txtNome.setText(turma.getNome());
         txtAnoLetivo.setText(turma.getAnoLetivo());
 
@@ -230,13 +228,12 @@ public class TurmasView {
         Escola escola = cbEscolaForm.getValue();
 
         if (nome.isBlank() || ano.isBlank() || escola == null) {
-            new Alert(Alert.AlertType.WARNING, "Preencha o nome, ano letivo e selecione uma escola.").showAndWait();
+            mainApp.mostrarAviso("Preencha o nome, ano letivo e selecione uma escola.", true);
             return;
         }
 
         boolean sucesso;
 
-        // Inserir se não tiver turma selecionada, senão Atualizar
         if (turmaSelecionada == null) {
             sucesso = turmaDAO.inserir(escola.getId(), nome, ano);
         } else {
@@ -244,29 +241,24 @@ public class TurmasView {
         }
 
         if (sucesso) {
+            mainApp.mostrarAviso(turmaSelecionada == null ? "Turma salva com sucesso!" : "Turma atualizada!", false);
             txtNome.clear();
             carregarTurmas();
             fecharDetalhe();
         } else {
-            new Alert(Alert.AlertType.ERROR, "Erro ao salvar a turma.").showAndWait();
+            mainApp.mostrarAviso("Erro ao salvar os dados no banco.", true);
         }
     }
 
-    private void mostrarDetalhe() {
-        painelDetalhe.setVisible(true);
-        painelDetalhe.setManaged(true);
-    }
+    private void mostrarDetalhe() { painelDetalhe.setVisible(true); painelDetalhe.setManaged(true); }
 
     private void fecharDetalhe() {
-        painelDetalhe.setVisible(false);
-        painelDetalhe.setManaged(false);
+        painelDetalhe.setVisible(false); painelDetalhe.setManaged(false);
         tabela.getSelectionModel().clearSelection();
         turmaSelecionada = null;
     }
 
-    private void carregarEscolas() {
-        cbEscolasFiltro.getItems().setAll(escolasDAO.listarTodas());
-    }
+    private void carregarEscolas() { cbEscolasFiltro.getItems().setAll(escolasDAO.listarTodas()); }
 
     private void carregarTurmas() {
         Escola selecionada = cbEscolasFiltro.getValue();
@@ -287,7 +279,5 @@ public class TurmasView {
         }
     }
 
-    public BorderPane getView() {
-        return view;
-    }
+    public BorderPane getView() { return view; }
 }

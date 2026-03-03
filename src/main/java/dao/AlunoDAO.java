@@ -11,7 +11,9 @@ import java.util.List;
 public class AlunoDAO {
 
     public boolean inserir(String authId, String nome, String email, String senha, String turmaId) {
-        String sql = "INSERT INTO perfis (id, nome, email, senha, role, turma_id) VALUES (?::uuid, ?, ?, ?, 'student', ?::uuid)";
+        // Usa ON CONFLICT para resolver problemas com Triggers do Supabase
+        String sql = "INSERT INTO perfis (id, nome, email, senha, role, turma_id) VALUES (?::uuid, ?, ?, ?, 'student', ?::uuid) " +
+                "ON CONFLICT (id) DO UPDATE SET nome = EXCLUDED.nome, email = EXCLUDED.email, senha = EXCLUDED.senha, role = EXCLUDED.role, turma_id = EXCLUDED.turma_id";
         try (Connection conn = ConexaoBD.conectar();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, authId);
@@ -52,14 +54,14 @@ public class AlunoDAO {
         try (Connection conn = ConexaoBD.conectar();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, id);
-            return stmt.executeUpdate() > 0;
+            stmt.executeUpdate(); // Não importa se retornar 0 (já deletado por cascade no supabase)
+            return true;
         } catch (SQLException e) {
             System.err.println("Erro ao excluir aluno da tabela: " + e.getMessage());
             return false;
         }
     }
 
-    // ✅ CORRIGIDO: LEFT JOIN para não perder alunos sem turma/escola válida
     public List<Aluno> listarTodos() {
         return buscar(
                 "SELECT p.id, p.nome, p.email, p.senha, p.turma_id, " +
@@ -72,7 +74,6 @@ public class AlunoDAO {
                 null);
     }
 
-    // ✅ CORRIGIDO: LEFT JOIN aqui também
     public List<Aluno> listarPorTurma(String turmaId) {
         return buscar(
                 "SELECT p.id, p.nome, p.email, p.senha, p.turma_id, " +

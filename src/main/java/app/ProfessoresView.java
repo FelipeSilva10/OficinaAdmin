@@ -25,14 +25,14 @@ public class ProfessoresView {
     private MainFX mainApp;
     private final ObservableList<Professor> dados = FXCollections.observableArrayList();
 
-    private Professor professorSelecionado; // Variável de controle (Novo ou Editar)
+    private Professor professorSelecionado;
 
     private VBox painelDetalhe;
     private Label lblNomeProf;
     private TextField txtNome, txtEmail;
     private PasswordField txtSenha;
     private Label lblSecaoTurmas;
-    private Button btnSalvar; // Movido para escopo da classe
+    private Button btnSalvar;
 
     public ProfessoresView(MainFX mainApp) {
         this.mainApp = mainApp;
@@ -74,7 +74,6 @@ public class ProfessoresView {
         TableColumn<Professor, String> colNome = new TableColumn<>("Nome");
         colNome.setCellValueFactory(new PropertyValueFactory<>("nome"));
 
-        // Adicionadas as colunas de Email e Senha. A de ID Auth foi removida.
         TableColumn<Professor, String> colEmail = new TableColumn<>("E-mail");
         colEmail.setCellValueFactory(new PropertyValueFactory<>("email"));
 
@@ -94,9 +93,26 @@ public class ProfessoresView {
         ordenado.comparatorProperty().bind(tabela.comparatorProperty());
         tabela.setItems(ordenado);
 
-        // Ação para abrir edição ao clicar em uma linha
         tabela.setRowFactory(tv -> {
             TableRow<Professor> row = new TableRow<>();
+            ContextMenu cm = new ContextMenu();
+            MenuItem miDel = new MenuItem("Excluir Professor");
+            miDel.setStyle("-fx-text-fill: red;");
+            miDel.setOnAction(e -> {
+                Professor p = row.getItem();
+                if (p != null) {
+                    if (professorDAO.excluir(p.getId())) {
+                        mainApp.mostrarAviso("Professor removido com sucesso!", false);
+                        carregarDados();
+                        fecharDetalhe();
+                    } else {
+                        mainApp.mostrarAviso("Erro ao excluir professor.", true);
+                    }
+                }
+            });
+            cm.getItems().add(miDel);
+            row.emptyProperty().addListener((obs, w, n) -> row.setContextMenu(n ? null : cm));
+
             row.setOnMouseClicked(event -> {
                 if (event.getClickCount() >= 1 && (!row.isEmpty())) {
                     abrirDetalheProf(row.getItem());
@@ -105,7 +121,6 @@ public class ProfessoresView {
             return row;
         });
 
-        // ── Painel Detalhe ────────────────────────────────────────
         painelDetalhe = new VBox(14);
         painelDetalhe.setPadding(new Insets(24));
         painelDetalhe.setStyle("-fx-background-color: white; -fx-border-color: #e2e8f0; -fx-border-width: 0 0 0 1;");
@@ -175,24 +190,24 @@ public class ProfessoresView {
 
     private void abrirFormNovo() {
         tabela.getSelectionModel().clearSelection();
-        professorSelecionado = null; // Zera a seleção
+        professorSelecionado = null;
         lblNomeProf.setText("Novo Professor");
         btnSalvar.setText("Cadastrar Professor");
         txtNome.clear(); txtEmail.clear(); txtSenha.clear();
-        txtEmail.setDisable(false); // Libera o email para cadastro
+        txtEmail.setDisable(false);
         setSecaoTurmasVisivel(false);
         mostrarDetalhe();
     }
 
     private void abrirDetalheProf(Professor prof) {
-        professorSelecionado = prof; // Guarda qual professor estamos editando
+        professorSelecionado = prof;
         lblNomeProf.setText("Editar: " + prof.getNome());
         btnSalvar.setText("Salvar Alterações");
 
         txtNome.setText(prof.getNome());
         txtEmail.setText(prof.getEmail());
         txtSenha.setText(prof.getSenha());
-        txtEmail.setDisable(true); // Bloqueia o email na edição para evitar conflito com o Auth (opcional)
+        txtEmail.setDisable(true);
 
         setSecaoTurmasVisivel(true);
         tabelaTurmas.getItems().setAll(turmaDAO.listarPorProfessor(prof.getId()));
@@ -210,27 +225,35 @@ public class ProfessoresView {
         String senha = txtSenha.getText();
 
         if (nome.isBlank() || email.isBlank() || senha.length() < 6) {
-            new Alert(Alert.AlertType.WARNING, "Preencha todos os campos. Senha mínima: 6 caracteres.").showAndWait();
+            mainApp.mostrarAviso("Preencha tudo! Senha mínima de 6 caracteres.", true);
             return;
         }
 
         // Verifica se é um NOVO cadastro
         if (professorSelecionado == null) {
             String novoId = SupabaseAuthDAO.criarUsuarioAuth(email, senha);
-            if (novoId != null && professorDAO.inserir(novoId, nome, email, senha)) {
-                txtNome.clear(); txtEmail.clear(); txtSenha.clear();
-                carregarDados(); fecharDetalhe();
+            if (novoId != null) {
+                if (professorDAO.inserir(novoId, nome, email, senha)) {
+                    mainApp.mostrarAviso("Professor salvo com sucesso!", false);
+                    txtNome.clear(); txtEmail.clear(); txtSenha.clear();
+                    carregarDados(); fecharDetalhe();
+                } else {
+                    // ROLLBACK
+                    SupabaseAuthDAO.deletarUsuarioAuth(novoId);
+                    mainApp.mostrarAviso("Erro ao vincular professor no banco de dados.", true);
+                }
             } else {
-                new Alert(Alert.AlertType.ERROR, "Erro: e-mail já em uso ou falha de rede.").showAndWait();
+                mainApp.mostrarAviso("E-mail já cadastrado no sistema!", true);
             }
         }
         // Caso contrário, é uma EDIÇÃO
         else {
             if (professorDAO.atualizar(professorSelecionado.getId(), nome, email, senha)) {
+                mainApp.mostrarAviso("Dados atualizados!", false);
                 txtNome.clear(); txtEmail.clear(); txtSenha.clear();
                 carregarDados(); fecharDetalhe();
             } else {
-                new Alert(Alert.AlertType.ERROR, "Erro ao atualizar os dados.").showAndWait();
+                mainApp.mostrarAviso("Erro ao atualizar dados.", true);
             }
         }
     }
@@ -240,7 +263,7 @@ public class ProfessoresView {
     private void fecharDetalhe() {
         painelDetalhe.setVisible(false); painelDetalhe.setManaged(false);
         tabela.getSelectionModel().clearSelection();
-        professorSelecionado = null; // Limpa ao fechar
+        professorSelecionado = null;
     }
 
     private void carregarDados() { dados.setAll(professorDAO.listarTodos()); }

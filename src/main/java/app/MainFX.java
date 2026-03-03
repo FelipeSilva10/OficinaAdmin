@@ -2,20 +2,22 @@ package app;
 
 import core.Escola;
 import core.Turma;
+import javafx.animation.FadeTransition;
+import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
-import javafx.stage.Modality;
 import javafx.stage.Stage;
-
-import java.util.Optional;
+import javafx.util.Duration;
 
 public class MainFX {
 
+    private StackPane mainContainer; // Root principal que segura a UI e os Toasts
     private BorderPane root;
+    private VBox toastContainer; // Caixa invisível que enfileira os avisos
     private Stage stage;
 
     private EscolasView escolasView;
@@ -25,8 +27,6 @@ public class MainFX {
 
     private Button btnAtivo;
     private Label breadcrumb;
-
-    // ── Entry point: tela de loading + pre-carregamento ───────────────────────
 
     public void iniciarComLoading(Stage stage) {
         this.stage = stage;
@@ -100,20 +100,48 @@ public class MainFX {
         new Thread(taskCarregar).start();
     }
 
-    // ── Monta a interface principal ───────────────────────────────────────────
-
     private void iniciarSistema() {
         root = new BorderPane();
         root.setStyle("-fx-font-size: 15px; -fx-background-color: #f0f2f5;");
         root.setTop(criarHeader());
         root.setLeft(criarSidebar());
+
+        // Container de Notificações (Toasts) flutuando por cima da interface
+        toastContainer = new VBox(10);
+        toastContainer.setAlignment(Pos.BOTTOM_RIGHT);
+        toastContainer.setPadding(new Insets(20));
+        toastContainer.setPickOnBounds(false); // Ignora cliques na área vazia para não bloquear os botões de baixo
+
+        mainContainer = new StackPane(root, toastContainer);
+
         abrirEscolas();
-        stage.getScene().setRoot(root);
+        stage.getScene().setRoot(mainContainer);
         stage.setMinWidth(960);
         stage.setMinHeight(620);
     }
 
-    // ── Header ────────────────────────────────────────────────────────────────
+    // ── Sistema de Avisos Flutuantes (Toast) ──────────────────────────────────
+    public void mostrarAviso(String mensagem, boolean isErro) {
+        Platform.runLater(() -> {
+            Label lblAviso = new Label(mensagem);
+            lblAviso.setStyle("-fx-background-color: " + (isErro ? "#e53e3e" : "#28a745") + ";" +
+                    "-fx-text-fill: white; -fx-padding: 12 24; -fx-background-radius: 8; " +
+                    "-fx-font-size: 14px; -fx-font-weight: bold; " +
+                    "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 8, 0, 0, 2);");
+
+            toastContainer.getChildren().add(lblAviso);
+
+            // Animação para sumir após 3.5 segundos
+            PauseTransition delay = new PauseTransition(Duration.seconds(3.5));
+            delay.setOnFinished(e -> {
+                FadeTransition fade = new FadeTransition(Duration.millis(300), lblAviso);
+                fade.setToValue(0.0);
+                fade.setOnFinished(ev -> toastContainer.getChildren().remove(lblAviso));
+                fade.play();
+            });
+            delay.play();
+        });
+    }
 
     private HBox criarHeader() {
         Label lblNome = new Label("Oficina Admin");
@@ -147,8 +175,6 @@ public class MainFX {
         breadcrumb.setText(sb.toString());
         breadcrumb.setStyle("-fx-text-fill: #2d3748; -fx-font-size: 14px; -fx-font-weight: bold;");
     }
-
-    // ── Sidebar ───────────────────────────────────────────────────────────────
 
     private VBox criarSidebar() {
         VBox sidebar = new VBox(4);
@@ -236,8 +262,6 @@ public class MainFX {
         btn.setStyle(navStyleAtivo());
     }
 
-    // ── Navegacao publica ─────────────────────────────────────────────────────
-
     public void abrirEscolas() {
         root.setCenter(escolasView.getView());
         setBreadcrumb("Escolas");
@@ -259,35 +283,10 @@ public class MainFX {
         setBreadcrumb("Escolas", escola.getNome());
     }
 
-    // ── Getters das views ─────────────────────────────────────────────────────
-
     public EscolasView getEscolasView()         { return escolasView; }
     public TurmasView getTurmasView()           { return turmasView; }
     public ProfessoresView getProfessoresView() { return professoresView; }
     public AlunosView getAlunosView()           { return alunosView; }
-
-    // ── Utilitarios de UI ─────────────────────────────────────────────────────
-
-    public void configurarModal(Dialog<?> dialog) {
-        Stage owner = getStage();
-        if (owner != null) {
-            dialog.initOwner(owner);
-            dialog.initModality(Modality.WINDOW_MODAL);
-        }
-        dialog.setOnHidden(e -> { if (owner != null) owner.toFront(); });
-    }
-
-    public Optional<ButtonType> exibirAlerta(Alert alert) {
-        Stage owner = getStage();
-        if (owner != null) {
-            alert.initOwner(owner);
-            alert.initModality(Modality.WINDOW_MODAL);
-        }
-        Optional<ButtonType> resultado = alert.showAndWait();
-        if (owner != null) owner.toFront();
-        return resultado;
-    }
-
     public Stage getStage() { return stage; }
 
     private void sair() {

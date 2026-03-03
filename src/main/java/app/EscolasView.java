@@ -17,15 +17,14 @@ public class EscolasView {
     private BorderPane view;
     private TableView<Escola> tabela;
     private EscolasDAO dao;
-    private Escola escolaSelecionada; // Váriavel de controle para saber se é edição ou novo
+    private Escola escolaSelecionada;
     private MainFX mainApp;
     private final ObservableList<Escola> dados = FXCollections.observableArrayList();
 
-    // Elementos do painel lateral
     private VBox painelDetalhe;
     private Label lblAcaoEscola;
     private TextField txtNome;
-    private Button btnSalvar; // Movido para o escopo da classe para poder alterar o texto depois
+    private Button btnSalvar;
 
     public EscolasView(MainFX mainApp) {
         this.mainApp = mainApp;
@@ -93,9 +92,14 @@ public class EscolasView {
             deleteItem.setStyle("-fx-text-fill: red;");
             deleteItem.setOnAction(event -> {
                 Escola escola = row.getItem();
-                if (escola != null && dao.excluir(escola.getId())) {
-                    carregarDados();
-                    fecharDetalhe();
+                if (escola != null) {
+                    if(dao.excluir(escola.getId())) {
+                        mainApp.mostrarAviso("Escola excluída!", false);
+                        carregarDados();
+                        fecharDetalhe();
+                    } else {
+                        mainApp.mostrarAviso("Erro ao excluir. Verifique os vínculos com turmas.", true);
+                    }
                 }
             });
             contextMenu.getItems().add(deleteItem);
@@ -112,7 +116,6 @@ public class EscolasView {
             return row;
         });
 
-        // ── Painel Detalhe Lateral ────────────────────────────────────────
         painelDetalhe = new VBox(14);
         painelDetalhe.setPadding(new Insets(24));
         painelDetalhe.setStyle("-fx-background-color: white; -fx-border-color: #e2e8f0; -fx-border-width: 0 0 0 1;");
@@ -157,7 +160,7 @@ public class EscolasView {
 
     private void abrirFormNovo() {
         tabela.getSelectionModel().clearSelection();
-        escolaSelecionada = null; // Reseta a escola selecionada
+        escolaSelecionada = null;
         lblAcaoEscola.setText("Nova Escola");
         btnSalvar.setText("Cadastrar Escola");
         txtNome.clear();
@@ -165,7 +168,7 @@ public class EscolasView {
     }
 
     private void abrirDetalheEscola(Escola escola) {
-        escolaSelecionada = escola; // Define a escola que está sendo editada
+        escolaSelecionada = escola;
         lblAcaoEscola.setText("Editar Escola");
         btnSalvar.setText("Salvar Alterações");
         txtNome.setText(escola.getNome());
@@ -175,47 +178,37 @@ public class EscolasView {
     private void cadastrar() {
         String nome = txtNome.getText().trim();
         if (nome.isBlank()) {
-            new Alert(Alert.AlertType.WARNING, "Preencha o nome da escola.").showAndWait();
+            mainApp.mostrarAviso("Preencha o nome da escola.", true);
             return;
         }
 
         boolean sucesso;
 
-        // Se a escolaSelecionada for null, é um NOVO cadastro
         if (escolaSelecionada == null) {
             sucesso = dao.inserir(new Escola(nome, "ativo"));
-        }
-        // Caso contrário, é uma EDIÇÃO
-        else {
+        } else {
             sucesso = dao.atualizar(escolaSelecionada.getId(), nome);
         }
 
         if (sucesso) {
+            mainApp.mostrarAviso(escolaSelecionada == null ? "Escola cadastrada com sucesso!" : "Escola atualizada!", false);
             txtNome.clear();
             carregarDados();
             fecharDetalhe();
         } else {
-            new Alert(Alert.AlertType.ERROR, "Erro ao salvar a escola.").showAndWait();
+            mainApp.mostrarAviso("Erro ao salvar a escola no banco.", true);
         }
     }
 
-    private void mostrarDetalhe() {
-        painelDetalhe.setVisible(true);
-        painelDetalhe.setManaged(true);
-    }
+    private void mostrarDetalhe() { painelDetalhe.setVisible(true); painelDetalhe.setManaged(true); }
 
     private void fecharDetalhe() {
-        painelDetalhe.setVisible(false);
-        painelDetalhe.setManaged(false);
+        painelDetalhe.setVisible(false); painelDetalhe.setManaged(false);
         tabela.getSelectionModel().clearSelection();
-        escolaSelecionada = null; // Limpar após fechar
+        escolaSelecionada = null;
     }
 
-    private void carregarDados() {
-        dados.setAll(dao.listarTodas());
-    }
+    private void carregarDados() { dados.setAll(dao.listarTodas()); }
 
-    public BorderPane getView() {
-        return view;
-    }
+    public BorderPane getView() { return view; }
 }

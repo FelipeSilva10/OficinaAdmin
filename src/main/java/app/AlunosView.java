@@ -27,6 +27,8 @@ public class AlunosView {
     private MainFX mainApp;
     private final ObservableList<Aluno> dados = FXCollections.observableArrayList();
 
+    private Aluno alunoSelecionado; // Variável de controle (Novo ou Editar)
+
     private VBox painelDetalhe;
     private Label lblNomeAluno;
     private TextField txtNome, txtEmail;
@@ -34,6 +36,7 @@ public class AlunosView {
     private ComboBox<Escola> cbEscola;
     private ComboBox<Turma> cbTurma;
     private Label lblDetalheInfo;
+    private Button btnSalvar; // Movido para escopo da classe
 
     public AlunosView(MainFX mainApp) {
         this.mainApp = mainApp;
@@ -75,17 +78,28 @@ public class AlunosView {
 
         TableColumn<Aluno, String> colNome = new TableColumn<>("Nome");
         colNome.setCellValueFactory(new PropertyValueFactory<>("nome"));
+
+        // Adicionando E-mail e Senha
+        TableColumn<Aluno, String> colEmail = new TableColumn<>("E-mail");
+        colEmail.setCellValueFactory(new PropertyValueFactory<>("email"));
+
+        TableColumn<Aluno, String> colSenha = new TableColumn<>("Senha");
+        colSenha.setCellValueFactory(new PropertyValueFactory<>("senha"));
+
         TableColumn<Aluno, String> colEscola = new TableColumn<>("Escola");
         colEscola.setCellValueFactory(new PropertyValueFactory<>("escolaNome"));
+
         TableColumn<Aluno, String> colTurma = new TableColumn<>("Turma");
         colTurma.setCellValueFactory(new PropertyValueFactory<>("turmaNome"));
-        tabela.getColumns().addAll(colNome, colEscola, colTurma);
+
+        tabela.getColumns().addAll(colNome, colEmail, colSenha, colEscola, colTurma);
 
         FilteredList<Aluno> filtrado = new FilteredList<>(dados, a -> true);
         txtBusca.textProperty().addListener((obs, old, term) -> {
             String f = term == null ? "" : term.trim().toLowerCase();
             filtrado.setPredicate(a -> f.isBlank()
                     || a.getNome().toLowerCase().contains(f)
+                    || (a.getEmail() != null && a.getEmail().toLowerCase().contains(f))
                     || a.getEscolaNome().toLowerCase().contains(f)
                     || a.getTurmaNome().toLowerCase().contains(f));
         });
@@ -93,7 +107,7 @@ public class AlunosView {
         ordenado.comparatorProperty().bind(tabela.comparatorProperty());
         tabela.setItems(ordenado);
 
-        // Clique simples → detalhe (mostra turma/escola)
+        // Clique simples → detalhe (Abre para editar)
         tabela.getSelectionModel().selectedItemProperty().addListener((obs, old, a) -> {
             if (a != null) abrirDetalheAluno(a);
         });
@@ -103,17 +117,13 @@ public class AlunosView {
             ContextMenu cm = new ContextMenu();
             MenuItem miDel = new MenuItem("Excluir Aluno");
             miDel.setStyle("-fx-text-fill: red;");
+
+            // Exclui direto sem Alert de confirmação
             miDel.setOnAction(e -> {
                 Aluno a = row.getItem();
-                if (a != null) {
-                    Alert conf = new Alert(Alert.AlertType.CONFIRMATION,
-                            "Excluir aluno \"" + a.getNome() + "\"?", ButtonType.OK, ButtonType.CANCEL);
-                    conf.setHeaderText(null);
-                    mainApp.exibirAlerta(conf).ifPresent(r -> {
-                        if (r == ButtonType.OK && alunoDAO.excluir(a.getId())) {
-                            carregarDados(); fecharDetalhe();
-                        }
-                    });
+                if (a != null && alunoDAO.excluir(a.getId())) {
+                    carregarDados();
+                    fecharDetalhe();
                 }
             });
             cm.getItems().add(miDel);
@@ -146,7 +156,7 @@ public class AlunosView {
         lblDetalheInfo.setVisible(false);
         lblDetalheInfo.setManaged(false);
 
-        Label lblFormTitle = new Label("Cadastrar Novo Aluno");
+        Label lblFormTitle = new Label("Dados de Acesso e Matrícula");
         lblFormTitle.setStyle("-fx-font-weight: bold; -fx-text-fill: #2d3748;");
 
         txtNome = new TextField(); txtNome.setPromptText("Nome completo");
@@ -193,7 +203,7 @@ public class AlunosView {
             }
         });
 
-        Button btnSalvar = new Button("Cadastrar Aluno");
+        btnSalvar = new Button("Cadastrar Aluno");
         btnSalvar.setStyle("-fx-background-color: #3182ce; -fx-text-fill: white; -fx-background-radius: 8; -fx-padding: 8 16; -fx-font-weight: bold;");
         btnSalvar.setMaxWidth(Double.MAX_VALUE);
         btnSalvar.setOnAction(e -> cadastrar());
@@ -213,8 +223,6 @@ public class AlunosView {
             lblDetalheInfo.setManaged(temAluno);
             if (temAluno) {
                 btnVerTurma.setOnAction(ev -> {
-                    // Navega para turmas filtrando pela escola do aluno
-                    Escola esc = new Escola(a.getEscolaNome(), "ativo"); // Só visual
                     mainApp.abrirTurmas(null);
                 });
             }
@@ -242,19 +250,52 @@ public class AlunosView {
 
     private void abrirFormNovo() {
         tabela.getSelectionModel().clearSelection();
+        alunoSelecionado = null; // Reseta seleção
         lblNomeAluno.setText("Novo Aluno");
+        btnSalvar.setText("Cadastrar Aluno");
         txtNome.clear(); txtEmail.clear(); txtSenha.clear();
+        txtEmail.setDisable(false); // Libera o email para ser digitado na criação
         cbEscola.getItems().setAll(escolasDAO.listarTodas());
         cbTurma.getItems().clear(); cbTurma.setDisable(true);
         mostrarDetalhe();
     }
 
     private void abrirDetalheAluno(Aluno aluno) {
-        lblNomeAluno.setText(aluno.getNome());
-        lblDetalheInfo.setText("Escola: " + aluno.getEscolaNome() + "\nTurma: " + aluno.getTurmaNome());
-        txtNome.clear(); txtEmail.clear(); txtSenha.clear();
+        alunoSelecionado = aluno; // Define o aluno a ser editado
+        lblNomeAluno.setText("Editar: " + aluno.getNome());
+        btnSalvar.setText("Salvar Alterações");
+
+        lblDetalheInfo.setText("Matrícula Atual:\nEscola: " + aluno.getEscolaNome() + "\nTurma: " + aluno.getTurmaNome());
+
+        txtNome.setText(aluno.getNome());
+        txtEmail.setText(aluno.getEmail());
+        txtSenha.setText(aluno.getSenha());
+        txtEmail.setDisable(true); // Impede de editar o e-mail depois de criado para não causar conflitos com Supabase
+
+        // Povoar e auto-selecionar ComboBoxes
         cbEscola.getItems().setAll(escolasDAO.listarTodas());
-        cbTurma.getItems().clear(); cbTurma.setDisable(true);
+        Escola escolaMatch = null;
+        for (Escola e : cbEscola.getItems()) {
+            if (e.getNome().equals(aluno.getEscolaNome())) {
+                escolaMatch = e;
+                break;
+            }
+        }
+
+        if (escolaMatch != null) {
+            cbEscola.setValue(escolaMatch);
+            cbTurma.getItems().setAll(turmaDAO.listarPorEscola(escolaMatch.getId()));
+            cbTurma.setDisable(false);
+            for (Turma t : cbTurma.getItems()) {
+                if (t.getId().equals(aluno.getTurmaId())) {
+                    cbTurma.setValue(t);
+                    break;
+                }
+            }
+        } else {
+            cbTurma.getItems().clear(); cbTurma.setDisable(true);
+        }
+
         mostrarDetalhe();
     }
 
@@ -263,24 +304,42 @@ public class AlunosView {
         String email = txtEmail.getText().trim();
         String senha = txtSenha.getText();
         Turma turma = cbTurma.getValue();
+
         if (nome.isBlank() || email.isBlank() || senha.length() < 6 || turma == null) {
-            new Alert(Alert.AlertType.WARNING, "Preencha tudo e selecione uma turma.").showAndWait();
+            new Alert(Alert.AlertType.WARNING, "Preencha tudo e selecione uma turma (Senha mínima 6 caracteres).").showAndWait();
             return;
         }
-        String novoId = SupabaseAuthDAO.criarUsuarioAuth(email, senha);
-        if (novoId != null && alunoDAO.inserir(novoId, nome, turma.getId())) {
-            txtNome.clear(); txtEmail.clear(); txtSenha.clear();
-            carregarDados(); fecharDetalhe();
-        } else {
-            new Alert(Alert.AlertType.ERROR, "Erro: e-mail já em uso ou falha de rede.").showAndWait();
+
+        // Novo Aluno
+        if (alunoSelecionado == null) {
+            String novoId = SupabaseAuthDAO.criarUsuarioAuth(email, senha);
+            if (novoId != null && alunoDAO.inserir(novoId, nome, email, senha, turma.getId())) {
+                txtNome.clear(); txtEmail.clear(); txtSenha.clear();
+                carregarDados(); fecharDetalhe();
+            } else {
+                new Alert(Alert.AlertType.ERROR, "Erro: e-mail já em uso ou falha de rede.").showAndWait();
+            }
+        }
+        // Atualizar Aluno Existente
+        else {
+            if (alunoDAO.atualizar(alunoSelecionado.getId(), nome, email, senha, turma.getId())) {
+                txtNome.clear(); txtEmail.clear(); txtSenha.clear();
+                carregarDados(); fecharDetalhe();
+            } else {
+                new Alert(Alert.AlertType.ERROR, "Erro ao atualizar aluno.").showAndWait();
+            }
         }
     }
 
     private void mostrarDetalhe() { painelDetalhe.setVisible(true); painelDetalhe.setManaged(true); }
+
     private void fecharDetalhe() {
         painelDetalhe.setVisible(false); painelDetalhe.setManaged(false);
         tabela.getSelectionModel().clearSelection();
+        alunoSelecionado = null; // Limpa ao fechar
     }
+
     private void carregarDados() { dados.setAll(alunoDAO.listarTodos()); }
+
     public BorderPane getView() { return view; }
 }

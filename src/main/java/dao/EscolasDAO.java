@@ -30,6 +30,18 @@ public class EscolasDAO {
         }
     }
 
+    public boolean atualizar(String id, String nome) {
+        String sql = "UPDATE escolas SET nome = ? WHERE id = ?::uuid";
+        try (Connection conn = ConexaoBD.conectar();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, nome);
+            stmt.setString(2, id);
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            return false;
+        }
+    }
+
     public boolean excluir(String id) {
         String sql = "DELETE FROM escolas WHERE id = ?::uuid";
         try (Connection conn = ConexaoBD.conectar();

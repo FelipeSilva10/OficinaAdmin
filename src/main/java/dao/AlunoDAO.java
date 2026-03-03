@@ -10,18 +10,30 @@ import java.util.List;
 
 public class AlunoDAO {
 
-    public boolean inserir(String authId, String nome, String turmaId) {
-        String sql = "INSERT INTO perfis (id, nome, role, turma_id) VALUES (?::uuid, ?, 'student', ?::uuid)";
+    public boolean inserir(String authId, String nome, String email, String senha, String turmaId) {
+        String sql = "INSERT INTO perfis (id, nome, email, senha, role, turma_id) VALUES (?::uuid, ?, ?, ?, 'student', ?::uuid)";
         try (Connection conn = ConexaoBD.conectar();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, authId);
             stmt.setString(2, nome);
-            stmt.setString(3, turmaId);
+            stmt.setString(3, email);
+            stmt.setString(4, senha);
+            stmt.setString(5, turmaId);
             return stmt.executeUpdate() > 0;
-        } catch (SQLException e) {
-            System.err.println("❌ Erro ao inserir aluno: " + e.getMessage());
-            return false;
-        }
+        } catch (SQLException e) { return false; }
+    }
+
+    public boolean atualizar(String id, String nome, String email, String senha, String turmaId) {
+        String sql = "UPDATE perfis SET nome = ?, email = ?, senha = ?, turma_id = ?::uuid WHERE id = ?::uuid";
+        try (Connection conn = ConexaoBD.conectar();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, nome);
+            stmt.setString(2, email);
+            stmt.setString(3, senha);
+            stmt.setString(4, turmaId);
+            stmt.setString(5, id);
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) { return false; }
     }
 
     // Exclui da tabela perfis E do Supabase Auth (nessa ordem inversa para não ter FK pendente)
@@ -71,11 +83,8 @@ public class AlunoDAO {
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
                     lista.add(new Aluno(
-                            rs.getString("id"),
-                            rs.getString("nome"),
-                            rs.getString("turma_id"),
-                            rs.getString("turma_nome"),
-                            rs.getString("escola_nome")
+                            rs.getString("id"), rs.getString("nome"), rs.getString("email"), rs.getString("senha"),
+                            rs.getString("turma_id"), rs.getString("turma_nome"), rs.getString("escola_nome")
                     ));
                 }
             }

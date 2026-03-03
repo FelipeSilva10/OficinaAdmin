@@ -25,11 +25,14 @@ public class ProfessoresView {
     private MainFX mainApp;
     private final ObservableList<Professor> dados = FXCollections.observableArrayList();
 
+    private Professor professorSelecionado; // Variável de controle (Novo ou Editar)
+
     private VBox painelDetalhe;
     private Label lblNomeProf;
     private TextField txtNome, txtEmail;
     private PasswordField txtSenha;
     private Label lblSecaoTurmas;
+    private Button btnSalvar; // Movido para escopo da classe
 
     public ProfessoresView(MainFX mainApp) {
         this.mainApp = mainApp;
@@ -70,24 +73,36 @@ public class ProfessoresView {
 
         TableColumn<Professor, String> colNome = new TableColumn<>("Nome");
         colNome.setCellValueFactory(new PropertyValueFactory<>("nome"));
-        TableColumn<Professor, String> colId = new TableColumn<>("ID Auth");
-        colId.setCellValueFactory(new PropertyValueFactory<>("id"));
-        colId.setStyle("-fx-font-family: monospace; -fx-text-fill: #718096;");
-        tabela.getColumns().addAll(colNome, colId);
+
+        // Adicionadas as colunas de Email e Senha. A de ID Auth foi removida.
+        TableColumn<Professor, String> colEmail = new TableColumn<>("E-mail");
+        colEmail.setCellValueFactory(new PropertyValueFactory<>("email"));
+
+        TableColumn<Professor, String> colSenha = new TableColumn<>("Senha");
+        colSenha.setCellValueFactory(new PropertyValueFactory<>("senha"));
+
+        tabela.getColumns().addAll(colNome, colEmail, colSenha);
 
         FilteredList<Professor> filtrado = new FilteredList<>(dados, p -> true);
         txtBusca.textProperty().addListener((obs, old, term) -> {
             String f = term == null ? "" : term.trim().toLowerCase();
             filtrado.setPredicate(p -> f.isBlank()
                     || p.getNome().toLowerCase().contains(f)
-                    || p.getId().toLowerCase().contains(f));
+                    || (p.getEmail() != null && p.getEmail().toLowerCase().contains(f)));
         });
         SortedList<Professor> ordenado = new SortedList<>(filtrado);
         ordenado.comparatorProperty().bind(tabela.comparatorProperty());
         tabela.setItems(ordenado);
 
-        tabela.getSelectionModel().selectedItemProperty().addListener((obs, old, p) -> {
-            if (p != null) abrirDetalheProf(p);
+        // Ação para abrir edição ao clicar em uma linha
+        tabela.setRowFactory(tv -> {
+            TableRow<Professor> row = new TableRow<>();
+            row.setOnMouseClicked(event -> {
+                if (event.getClickCount() >= 1 && (!row.isEmpty())) {
+                    abrirDetalheProf(row.getItem());
+                }
+            });
+            return row;
         });
 
         // ── Painel Detalhe ────────────────────────────────────────
@@ -115,7 +130,7 @@ public class ProfessoresView {
         txtEmail = new TextField(); txtEmail.setPromptText("E-mail");
         txtSenha = new PasswordField(); txtSenha.setPromptText("Senha (mín. 6 caracteres)");
 
-        Button btnSalvar = new Button("Cadastrar Professor");
+        btnSalvar = new Button("Cadastrar Professor");
         btnSalvar.setStyle("-fx-background-color: #3182ce; -fx-text-fill: white; -fx-background-radius: 8; -fx-padding: 8 16; -fx-font-weight: bold;");
         btnSalvar.setMaxWidth(Double.MAX_VALUE);
         btnSalvar.setOnAction(e -> cadastrar());
@@ -160,15 +175,25 @@ public class ProfessoresView {
 
     private void abrirFormNovo() {
         tabela.getSelectionModel().clearSelection();
+        professorSelecionado = null; // Zera a seleção
         lblNomeProf.setText("Novo Professor");
+        btnSalvar.setText("Cadastrar Professor");
         txtNome.clear(); txtEmail.clear(); txtSenha.clear();
+        txtEmail.setDisable(false); // Libera o email para cadastro
         setSecaoTurmasVisivel(false);
         mostrarDetalhe();
     }
 
     private void abrirDetalheProf(Professor prof) {
-        lblNomeProf.setText(prof.getNome());
-        txtNome.clear(); txtEmail.clear(); txtSenha.clear();
+        professorSelecionado = prof; // Guarda qual professor estamos editando
+        lblNomeProf.setText("Editar: " + prof.getNome());
+        btnSalvar.setText("Salvar Alterações");
+
+        txtNome.setText(prof.getNome());
+        txtEmail.setText(prof.getEmail());
+        txtSenha.setText(prof.getSenha());
+        txtEmail.setDisable(true); // Bloqueia o email na edição para evitar conflito com o Auth (opcional)
+
         setSecaoTurmasVisivel(true);
         tabelaTurmas.getItems().setAll(turmaDAO.listarPorProfessor(prof.getId()));
         mostrarDetalhe();
@@ -183,24 +208,42 @@ public class ProfessoresView {
         String nome = txtNome.getText().trim();
         String email = txtEmail.getText().trim();
         String senha = txtSenha.getText();
+
         if (nome.isBlank() || email.isBlank() || senha.length() < 6) {
             new Alert(Alert.AlertType.WARNING, "Preencha todos os campos. Senha mínima: 6 caracteres.").showAndWait();
             return;
         }
-        String novoId = SupabaseAuthDAO.criarUsuarioAuth(email, senha);
-        if (novoId != null && professorDAO.inserir(novoId, nome)) {
-            txtNome.clear(); txtEmail.clear(); txtSenha.clear();
-            carregarDados(); fecharDetalhe();
-        } else {
-            new Alert(Alert.AlertType.ERROR, "Erro: e-mail já em uso ou falha de rede.").showAndWait();
+
+        // Verifica se é um NOVO cadastro
+        if (professorSelecionado == null) {
+            String novoId = SupabaseAuthDAO.criarUsuarioAuth(email, senha);
+            if (novoId != null && professorDAO.inserir(novoId, nome, email, senha)) {
+                txtNome.clear(); txtEmail.clear(); txtSenha.clear();
+                carregarDados(); fecharDetalhe();
+            } else {
+                new Alert(Alert.AlertType.ERROR, "Erro: e-mail já em uso ou falha de rede.").showAndWait();
+            }
+        }
+        // Caso contrário, é uma EDIÇÃO
+        else {
+            if (professorDAO.atualizar(professorSelecionado.getId(), nome, email, senha)) {
+                txtNome.clear(); txtEmail.clear(); txtSenha.clear();
+                carregarDados(); fecharDetalhe();
+            } else {
+                new Alert(Alert.AlertType.ERROR, "Erro ao atualizar os dados.").showAndWait();
+            }
         }
     }
 
     private void mostrarDetalhe() { painelDetalhe.setVisible(true); painelDetalhe.setManaged(true); }
+
     private void fecharDetalhe() {
         painelDetalhe.setVisible(false); painelDetalhe.setManaged(false);
         tabela.getSelectionModel().clearSelection();
+        professorSelecionado = null; // Limpa ao fechar
     }
+
     private void carregarDados() { dados.setAll(professorDAO.listarTodos()); }
+
     public BorderPane getView() { return view; }
 }

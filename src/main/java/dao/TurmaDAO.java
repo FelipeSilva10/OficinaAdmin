@@ -18,6 +18,18 @@ public class TurmaDAO {
         } catch (SQLException e) { return false; }
     }
 
+    public boolean atualizar(String id, String escolaId, String nome, String anoLetivo) {
+        String sql = "UPDATE turmas SET escola_id = ?::uuid, nome = ?, ano_letivo = ? WHERE id = ?::uuid";
+        try (Connection conn = ConexaoBD.conectar();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, escolaId);
+            stmt.setString(2, nome);
+            stmt.setString(3, anoLetivo);
+            stmt.setString(4, id);
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) { return false; }
+    }
+
     public boolean excluir(String id) {
         String sql = "DELETE FROM turmas WHERE id = ?::uuid";
         try (Connection conn = ConexaoBD.conectar();

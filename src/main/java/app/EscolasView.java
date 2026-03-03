@@ -12,13 +12,12 @@ import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.*;
 
-import java.util.Optional;
-
 public class EscolasView {
 
     private BorderPane view;
     private TableView<Escola> tabela;
     private EscolasDAO dao;
+    private Escola escolaSelecionada; // Váriavel de controle para saber se é edição ou novo
     private MainFX mainApp;
     private final ObservableList<Escola> dados = FXCollections.observableArrayList();
 
@@ -26,6 +25,7 @@ public class EscolasView {
     private VBox painelDetalhe;
     private Label lblAcaoEscola;
     private TextField txtNome;
+    private Button btnSalvar; // Movido para o escopo da classe para poder alterar o texto depois
 
     public EscolasView(MainFX mainApp) {
         this.mainApp = mainApp;
@@ -89,17 +89,13 @@ public class EscolasView {
             TableRow<Escola> row = new TableRow<>();
 
             ContextMenu contextMenu = new ContextMenu();
-            MenuItem deleteItem = new MenuItem("🗑 Excluir Escola");
+            MenuItem deleteItem = new MenuItem("Excluir Escola");
             deleteItem.setStyle("-fx-text-fill: red;");
             deleteItem.setOnAction(event -> {
                 Escola escola = row.getItem();
-                if (escola != null && confirmarExclusao(escola.getNome())) {
-                    if (dao.excluir(escola.getId())) {
-                        carregarDados();
-                        fecharDetalhe();
-                    } else {
-                        mainApp.exibirAlerta(new Alert(Alert.AlertType.ERROR, "Erro ao excluir. Verifique vínculos com turmas."));
-                    }
+                if (escola != null && dao.excluir(escola.getId())) {
+                    carregarDados();
+                    fecharDetalhe();
                 }
             });
             contextMenu.getItems().add(deleteItem);
@@ -140,7 +136,7 @@ public class EscolasView {
         txtNome = new TextField();
         txtNome.setPromptText("Nome da Escola");
 
-        Button btnSalvar = new Button("Cadastrar Escola");
+        btnSalvar = new Button("Cadastrar Escola");
         btnSalvar.setStyle("-fx-background-color: #28a745; -fx-text-fill: white; -fx-background-radius: 8; -fx-padding: 8 16; -fx-font-weight: bold;");
         btnSalvar.setMaxWidth(Double.MAX_VALUE);
         btnSalvar.setOnAction(e -> cadastrar());
@@ -161,15 +157,18 @@ public class EscolasView {
 
     private void abrirFormNovo() {
         tabela.getSelectionModel().clearSelection();
+        escolaSelecionada = null; // Reseta a escola selecionada
         lblAcaoEscola.setText("Nova Escola");
+        btnSalvar.setText("Cadastrar Escola");
         txtNome.clear();
         mostrarDetalhe();
     }
 
     private void abrirDetalheEscola(Escola escola) {
-        lblAcaoEscola.setText("Detalhes da Escola");
+        escolaSelecionada = escola; // Define a escola que está sendo editada
+        lblAcaoEscola.setText("Editar Escola");
+        btnSalvar.setText("Salvar Alterações");
         txtNome.setText(escola.getNome());
-        // Aqui podemos desabilitar o botão salvar ou permitir atualização futuramente
         mostrarDetalhe();
     }
 
@@ -180,22 +179,24 @@ public class EscolasView {
             return;
         }
 
-        if (dao.inserir(new Escola(nome, "ativo"))) {
+        boolean sucesso;
+
+        // Se a escolaSelecionada for null, é um NOVO cadastro
+        if (escolaSelecionada == null) {
+            sucesso = dao.inserir(new Escola(nome, "ativo"));
+        }
+        // Caso contrário, é uma EDIÇÃO
+        else {
+            sucesso = dao.atualizar(escolaSelecionada.getId(), nome);
+        }
+
+        if (sucesso) {
             txtNome.clear();
             carregarDados();
             fecharDetalhe();
         } else {
-            new Alert(Alert.AlertType.ERROR, "Erro ao cadastrar escola.").showAndWait();
+            new Alert(Alert.AlertType.ERROR, "Erro ao salvar a escola.").showAndWait();
         }
-    }
-
-    private boolean confirmarExclusao(String nomeEscola) {
-        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-        alert.setTitle("Confirmar exclusão");
-        alert.setHeaderText("Deseja excluir a escola?");
-        alert.setContentText("Escola: " + nomeEscola);
-        Optional<ButtonType> result = mainApp.exibirAlerta(alert);
-        return result.isPresent() && result.get() == ButtonType.OK;
     }
 
     private void mostrarDetalhe() {
@@ -207,6 +208,7 @@ public class EscolasView {
         painelDetalhe.setVisible(false);
         painelDetalhe.setManaged(false);
         tabela.getSelectionModel().clearSelection();
+        escolaSelecionada = null; // Limpar após fechar
     }
 
     private void carregarDados() {

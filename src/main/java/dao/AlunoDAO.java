@@ -42,15 +42,12 @@ public class AlunoDAO {
         }
     }
 
-    // Exclui da tabela perfis E do Supabase Auth
     public boolean excluir(String id) {
-        // 1. Remove do Auth primeiro
         boolean authOk = SupabaseAuthDAO.deletarUsuarioAuth(id);
         if (!authOk) {
             System.err.println("Falha ao remover do Auth, abortando exclusao do perfil.");
             return false;
         }
-        // 2. Remove da tabela perfis
         String sql = "DELETE FROM perfis WHERE id = ?::uuid";
         try (Connection conn = ConexaoBD.conectar();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -62,24 +59,28 @@ public class AlunoDAO {
         }
     }
 
-    // CORRIGIDO: adicionados p.email e p.senha no SELECT
+    // ✅ CORRIGIDO: LEFT JOIN para não perder alunos sem turma/escola válida
     public List<Aluno> listarTodos() {
         return buscar(
                 "SELECT p.id, p.nome, p.email, p.senha, p.turma_id, " +
-                        "t.nome as turma_nome, e.nome as escola_nome " +
-                        "FROM perfis p JOIN turmas t ON p.turma_id = t.id " +
-                        "JOIN escolas e ON t.escola_id = e.id " +
-                        "WHERE p.role = 'student' ORDER BY p.created_at DESC",
+                        "COALESCE(t.nome, 'Sem Turma') as turma_nome, " +
+                        "COALESCE(e.nome, 'Sem Escola') as escola_nome " +
+                        "FROM perfis p " +
+                        "LEFT JOIN turmas t ON p.turma_id = t.id " +
+                        "LEFT JOIN escolas e ON t.escola_id = e.id " +
+                        "WHERE p.role = 'student' ORDER BY p.nome ASC",
                 null);
     }
 
-    // CORRIGIDO: adicionados p.email e p.senha no SELECT
+    // ✅ CORRIGIDO: LEFT JOIN aqui também
     public List<Aluno> listarPorTurma(String turmaId) {
         return buscar(
                 "SELECT p.id, p.nome, p.email, p.senha, p.turma_id, " +
-                        "t.nome as turma_nome, e.nome as escola_nome " +
-                        "FROM perfis p JOIN turmas t ON p.turma_id = t.id " +
-                        "JOIN escolas e ON t.escola_id = e.id " +
+                        "COALESCE(t.nome, 'Sem Turma') as turma_nome, " +
+                        "COALESCE(e.nome, 'Sem Escola') as escola_nome " +
+                        "FROM perfis p " +
+                        "LEFT JOIN turmas t ON p.turma_id = t.id " +
+                        "LEFT JOIN escolas e ON t.escola_id = e.id " +
                         "WHERE p.role = 'student' AND p.turma_id = ?::uuid ORDER BY p.nome ASC",
                 turmaId);
     }
@@ -103,6 +104,7 @@ public class AlunoDAO {
                 }
             }
         } catch (SQLException e) {
+            System.err.println("Erro ao buscar alunos: " + e.getMessage());
             e.printStackTrace();
         }
         return lista;

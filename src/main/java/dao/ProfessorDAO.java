@@ -1,6 +1,7 @@
 package dao;
 
 import core.Professor;
+import core.Turma;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -19,7 +20,10 @@ public class ProfessorDAO {
             stmt.setString(3, email);
             stmt.setString(4, senha);
             return stmt.executeUpdate() > 0;
-        } catch (SQLException e) { return false; }
+        } catch (SQLException e) {
+            System.err.println("Erro ao inserir professor: " + e.getMessage());
+            return false;
+        }
     }
 
     public boolean atualizar(String id, String nome, String email, String senha) {
@@ -31,10 +35,12 @@ public class ProfessorDAO {
             stmt.setString(3, senha);
             stmt.setString(4, id);
             return stmt.executeUpdate() > 0;
-        } catch (SQLException e) { return false; }
+        } catch (SQLException e) {
+            System.err.println("Erro ao atualizar professor: " + e.getMessage());
+            return false;
+        }
     }
 
-    // ADICIONADO: metodo excluir que estava faltando
     public boolean excluir(String id) {
         boolean authOk = SupabaseAuthDAO.deletarUsuarioAuth(id);
         if (!authOk) {
@@ -52,17 +58,25 @@ public class ProfessorDAO {
         }
     }
 
+    // ✅ CORRIGIDO: ORDER BY nome em vez de created_at (evita erro se coluna não existir)
     public List<Professor> listarTodos() {
         List<Professor> lista = new ArrayList<>();
-        String sql = "SELECT id, nome, email, senha FROM perfis WHERE role = 'teacher' ORDER BY created_at DESC";
+        String sql = "SELECT id, nome, email, senha FROM perfis WHERE role = 'teacher' ORDER BY nome ASC";
         try (Connection conn = ConexaoBD.conectar();
              PreparedStatement stmt = conn.prepareStatement(sql);
              ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) {
-                lista.add(new Professor(rs.getString("id"), rs.getString("nome"),
-                        rs.getString("email"), rs.getString("senha")));
+                lista.add(new Professor(
+                        rs.getString("id"),
+                        rs.getString("nome"),
+                        rs.getString("email"),
+                        rs.getString("senha")
+                ));
             }
-        } catch (SQLException e) { e.printStackTrace(); }
+        } catch (SQLException e) {
+            System.err.println("Erro ao listar professores: " + e.getMessage());
+            e.printStackTrace();
+        }
         return lista;
     }
 
@@ -80,7 +94,10 @@ public class ProfessorDAO {
                             rs.getString("email"), rs.getString("senha")));
                 }
             }
-        } catch (SQLException e) { e.printStackTrace(); }
+        } catch (SQLException e) {
+            System.err.println("Erro ao listar professores por escola: " + e.getMessage());
+            e.printStackTrace();
+        }
         return lista;
     }
 
@@ -102,5 +119,9 @@ public class ProfessorDAO {
             stmt.setString(2, escolaId);
             return stmt.executeUpdate() > 0;
         } catch (SQLException e) { return false; }
+    }
+
+    public List<Turma> listarPorProfessor(String professorId) {
+        return new TurmaDAO().listarPorProfessor(professorId);
     }
 }

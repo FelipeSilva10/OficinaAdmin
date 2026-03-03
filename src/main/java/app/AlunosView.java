@@ -36,7 +36,8 @@ public class AlunosView {
     private ComboBox<Escola> cbEscola;
     private ComboBox<Turma> cbTurma;
     private Label lblDetalheInfo;
-    private Button btnSalvar; // Movido para escopo da classe
+    private Button btnSalvar;
+    private Button btnVerTurma;
 
     public AlunosView(MainFX mainApp) {
         this.mainApp = mainApp;
@@ -107,9 +108,29 @@ public class AlunosView {
         ordenado.comparatorProperty().bind(tabela.comparatorProperty());
         tabela.setItems(ordenado);
 
-        // Clique simples → detalhe (Abre para editar)
+        // ✅ LISTENER ÚNICO - Consolidado
         tabela.getSelectionModel().selectedItemProperty().addListener((obs, old, a) -> {
-            if (a != null) abrirDetalheAluno(a);
+            if (a != null) {
+                // 1. Abre o painel de edição
+                abrirDetalheAluno(a);
+
+                // 2. Mostra botão "Ir para Turma"
+                btnVerTurma.setVisible(true);
+                btnVerTurma.setManaged(true);
+                lblDetalheInfo.setVisible(true);
+                lblDetalheInfo.setManaged(true);
+
+                // 3. Define ação do botão
+                btnVerTurma.setOnAction(ev -> {
+                    mainApp.abrirTurmas(null);
+                });
+            } else {
+                // Esconde quando nada selecionado
+                btnVerTurma.setVisible(false);
+                btnVerTurma.setManaged(false);
+                lblDetalheInfo.setVisible(false);
+                lblDetalheInfo.setManaged(false);
+            }
         });
 
         tabela.setRowFactory(tv -> {
@@ -209,24 +230,11 @@ public class AlunosView {
         btnSalvar.setOnAction(e -> cadastrar());
 
         // Botão "Ver Turma" (só aparece quando aluno selecionado)
-        Button btnVerTurma = new Button("Ir para Turma");
+        btnVerTurma = new Button("Ir para Turma");
         btnVerTurma.setStyle("-fx-background-color: #e2e8f0; -fx-text-fill: #2d3748; -fx-background-radius: 8; -fx-padding: 8 16;");
         btnVerTurma.setMaxWidth(Double.MAX_VALUE);
         btnVerTurma.setVisible(false);
         btnVerTurma.setManaged(false);
-
-        tabela.getSelectionModel().selectedItemProperty().addListener((obs, old, a) -> {
-            boolean temAluno = a != null;
-            btnVerTurma.setVisible(temAluno);
-            btnVerTurma.setManaged(temAluno);
-            lblDetalheInfo.setVisible(temAluno);
-            lblDetalheInfo.setManaged(temAluno);
-            if (temAluno) {
-                btnVerTurma.setOnAction(ev -> {
-                    mainApp.abrirTurmas(null);
-                });
-            }
-        });
 
         painelDetalhe.getChildren().addAll(
                 hdrD, lblNomeAluno, lblDetalheInfo, new Separator(),

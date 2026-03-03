@@ -34,6 +34,24 @@ public class ProfessorDAO {
         } catch (SQLException e) { return false; }
     }
 
+    // ADICIONADO: metodo excluir que estava faltando
+    public boolean excluir(String id) {
+        boolean authOk = SupabaseAuthDAO.deletarUsuarioAuth(id);
+        if (!authOk) {
+            System.err.println("Falha ao remover professor do Auth.");
+            return false;
+        }
+        String sql = "DELETE FROM perfis WHERE id = ?::uuid";
+        try (Connection conn = ConexaoBD.conectar();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, id);
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            System.err.println("Erro ao excluir professor: " + e.getMessage());
+            return false;
+        }
+    }
+
     public List<Professor> listarTodos() {
         List<Professor> lista = new ArrayList<>();
         String sql = "SELECT id, nome, email, senha FROM perfis WHERE role = 'teacher' ORDER BY created_at DESC";
@@ -41,7 +59,8 @@ public class ProfessorDAO {
              PreparedStatement stmt = conn.prepareStatement(sql);
              ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) {
-                lista.add(new Professor(rs.getString("id"), rs.getString("nome"), rs.getString("email"), rs.getString("senha")));
+                lista.add(new Professor(rs.getString("id"), rs.getString("nome"),
+                        rs.getString("email"), rs.getString("senha")));
             }
         } catch (SQLException e) { e.printStackTrace(); }
         return lista;
@@ -49,7 +68,6 @@ public class ProfessorDAO {
 
     public List<Professor> listarPorEscola(String escolaId) {
         List<Professor> lista = new ArrayList<>();
-        // Atualizado para buscar email e senha
         String sql = "SELECT p.id, p.nome, p.email, p.senha FROM perfis p " +
                 "JOIN escola_professores ep ON p.id = ep.professor_id " +
                 "WHERE ep.escola_id = ?::uuid";
@@ -58,13 +76,8 @@ public class ProfessorDAO {
             stmt.setString(1, escolaId);
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
-                    // Atualizado para usar o novo construtor com 4 parâmetros
-                    lista.add(new Professor(
-                            rs.getString("id"),
-                            rs.getString("nome"),
-                            rs.getString("email"),
-                            rs.getString("senha")
-                    ));
+                    lista.add(new Professor(rs.getString("id"), rs.getString("nome"),
+                            rs.getString("email"), rs.getString("senha")));
                 }
             }
         } catch (SQLException e) { e.printStackTrace(); }

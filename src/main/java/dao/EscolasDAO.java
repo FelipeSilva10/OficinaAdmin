@@ -10,34 +10,28 @@ import java.util.List;
 
 public class EscolasDAO {
 
-    // Metodo para SALVAR no Supabase
     public boolean inserir(Escola escola) {
-        // O id e o created_at são gerados automaticamente pelo PostgreSQL!
         String sql = "INSERT INTO escolas (nome, status) VALUES (?, ?)";
-
         try (Connection conn = ConexaoBD.conectar();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
-
             stmt.setString(1, escola.getNome());
             stmt.setString(2, escola.getStatus());
-
-            int linhasAfetadas = stmt.executeUpdate();
-            return linhasAfetadas > 0;
-
+            return stmt.executeUpdate() > 0;
         } catch (SQLException e) {
-            System.err.println("❌ Erro ao inserir escola: " + e.getMessage());
+            System.err.println("Erro ao inserir escola: " + e.getMessage());
             return false;
         }
     }
 
-    public boolean atualizar(String id, String nome) {
+    public boolean atualizar(String id, String novoNome) {
         String sql = "UPDATE escolas SET nome = ? WHERE id = ?::uuid";
         try (Connection conn = ConexaoBD.conectar();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, nome);
+            stmt.setString(1, novoNome);
             stmt.setString(2, id);
             return stmt.executeUpdate() > 0;
         } catch (SQLException e) {
+            System.err.println("Erro ao atualizar escola: " + e.getMessage());
             return false;
         }
     }
@@ -49,30 +43,27 @@ public class EscolasDAO {
             stmt.setString(1, id);
             return stmt.executeUpdate() > 0;
         } catch (SQLException e) {
-            System.err.println("❌ Erro ao excluir escola: " + e.getMessage());
+            System.err.println("Erro ao excluir escola: " + e.getMessage());
             return false;
         }
     }
 
     public List<Escola> listarTodas() {
-        List<Escola> escolas = new ArrayList<>();
-        String sql = "SELECT * FROM escolas ORDER BY created_at DESC";
-
+        List<Escola> lista = new ArrayList<>();
+        String sql = "SELECT id, nome, status FROM escolas ORDER BY nome ASC";
         try (Connection conn = ConexaoBD.conectar();
              PreparedStatement stmt = conn.prepareStatement(sql);
              ResultSet rs = stmt.executeQuery()) {
-
             while (rs.next()) {
-                Escola escola = new Escola(
+                lista.add(new Escola(
                         rs.getString("id"),
                         rs.getString("nome"),
                         rs.getString("status")
-                );
-                escolas.add(escola);
+                ));
             }
         } catch (SQLException e) {
-            System.err.println("❌ Erro ao listar escolas: " + e.getMessage());
+            System.err.println("Erro ao listar escolas: " + e.getMessage());
         }
-        return escolas;
+        return lista;
     }
 }

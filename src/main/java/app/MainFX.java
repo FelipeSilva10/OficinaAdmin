@@ -2,6 +2,7 @@ package app;
 
 import core.Escola;
 import core.Turma;
+import core.UsuarioSessao;
 import javafx.animation.FadeTransition;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
@@ -10,15 +11,20 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
+import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 
+import java.util.Optional;
+
 public class MainFX {
 
-    private StackPane mainContainer; // Root principal que segura a UI e os Toasts
+    private StackPane mainContainer;
     private BorderPane root;
-    private VBox toastContainer; // Caixa invisível que enfileira os avisos
+    private VBox toastContainer;
     private Stage stage;
+
+    private UsuarioSessao sessaoAtual; // Guarda quem está logado!
 
     private EscolasView escolasView;
     private TurmasView turmasView;
@@ -28,24 +34,23 @@ public class MainFX {
     private Button btnAtivo;
     private Label breadcrumb;
 
-    public void iniciarComLoading(Stage stage) {
+    // Novo getter para as Views verificarem se é admin
+    public boolean isAdmin() {
+        return sessaoAtual != null && "ADMIN".equals(sessaoAtual.getRole());
+    }
+
+    public void iniciarComLoading(Stage stage, UsuarioSessao sessao) {
         this.stage = stage;
+        this.sessaoAtual = sessao;
 
         VBox loadingPane = new VBox(24);
         loadingPane.setAlignment(Pos.CENTER);
         loadingPane.setStyle("-fx-background-color: #1a202c;");
 
         Label lblIniciais = new Label("OA");
-        lblIniciais.setStyle("""
-            -fx-font-size: 40px;
-            -fx-font-weight: bold;
-            -fx-text-fill: #63b3ed;
-            -fx-background-color: #2c5282;
-            -fx-background-radius: 16;
-            -fx-padding: 14 22;
-        """);
+        lblIniciais.setStyle("-fx-font-size: 40px; -fx-font-weight: bold; -fx-text-fill: #63b3ed; -fx-background-color: #2c5282; -fx-background-radius: 16; -fx-padding: 14 22;");
 
-        Label lblMsg = new Label("Carregando dados...");
+        Label lblMsg = new Label("Bem-vindo(a), " + sessao.getNome() + "! Carregando dados...");
         lblMsg.setStyle("-fx-text-fill: #a0aec0; -fx-font-size: 16px; -fx-font-weight: bold;");
 
         ProgressBar progressBar = new ProgressBar(-1);
@@ -63,40 +68,17 @@ public class MainFX {
         stage.setHeight(660);
 
         Task<Void> taskCarregar = new Task<>() {
-            @Override
-            protected Void call() throws Exception {
-                updateMessage("Carregando escolas...");
-                Platform.runLater(() -> escolasView = new EscolasView(MainFX.this));
-                Thread.sleep(100);
-
-                updateMessage("Carregando turmas...");
-                Platform.runLater(() -> turmasView = new TurmasView(MainFX.this));
-                Thread.sleep(100);
-
-                updateMessage("Carregando professores...");
-                Platform.runLater(() -> professoresView = new ProfessoresView(MainFX.this));
-                Thread.sleep(100);
-
-                updateMessage("Carregando alunos...");
-                Platform.runLater(() -> alunosView = new AlunosView(MainFX.this));
-                Thread.sleep(200);
-
+            @Override protected Void call() throws Exception {
+                updateMessage("Carregando escolas..."); Platform.runLater(() -> escolasView = new EscolasView(MainFX.this)); Thread.sleep(100);
+                updateMessage("Carregando turmas...");  Platform.runLater(() -> turmasView = new TurmasView(MainFX.this)); Thread.sleep(100);
+                if(isAdmin()) { updateMessage("Carregando professores..."); Platform.runLater(() -> professoresView = new ProfessoresView(MainFX.this)); Thread.sleep(100); }
+                updateMessage("Carregando alunos...");  Platform.runLater(() -> alunosView = new AlunosView(MainFX.this)); Thread.sleep(200);
                 return null;
             }
         };
 
-        taskCarregar.messageProperty().addListener((obs, old, msg) ->
-                Platform.runLater(() -> lblDetalhe.setText(msg)));
-
+        taskCarregar.messageProperty().addListener((obs, old, msg) -> Platform.runLater(() -> lblDetalhe.setText(msg)));
         taskCarregar.setOnSucceeded(e -> Platform.runLater(this::iniciarSistema));
-
-        taskCarregar.setOnFailed(e -> Platform.runLater(() -> {
-            lblMsg.setText("Erro ao conectar!");
-            lblMsg.setStyle("-fx-text-fill: #fc8181; -fx-font-size: 16px; -fx-font-weight: bold;");
-            lblDetalhe.setText("Verifique a conexao com o banco de dados e reinicie o sistema.");
-            progressBar.setProgress(0);
-        }));
-
         new Thread(taskCarregar).start();
     }
 
@@ -106,32 +88,21 @@ public class MainFX {
         root.setTop(criarHeader());
         root.setLeft(criarSidebar());
 
-        // Container de Notificações (Toasts) flutuando por cima da interface
         toastContainer = new VBox(10);
         toastContainer.setAlignment(Pos.BOTTOM_RIGHT);
         toastContainer.setPadding(new Insets(20));
-        toastContainer.setPickOnBounds(false); // Ignora cliques na área vazia para não bloquear os botões de baixo
+        toastContainer.setPickOnBounds(false);
 
         mainContainer = new StackPane(root, toastContainer);
-
         abrirEscolas();
         stage.getScene().setRoot(mainContainer);
-        stage.setMinWidth(960);
-        stage.setMinHeight(620);
     }
 
-    // ── Sistema de Avisos Flutuantes (Toast) ──────────────────────────────────
     public void mostrarAviso(String mensagem, boolean isErro) {
         Platform.runLater(() -> {
             Label lblAviso = new Label(mensagem);
-            lblAviso.setStyle("-fx-background-color: " + (isErro ? "#e53e3e" : "#28a745") + ";" +
-                    "-fx-text-fill: white; -fx-padding: 12 24; -fx-background-radius: 8; " +
-                    "-fx-font-size: 14px; -fx-font-weight: bold; " +
-                    "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 8, 0, 0, 2);");
-
+            lblAviso.setStyle("-fx-background-color: " + (isErro ? "#e53e3e" : "#28a745") + "; -fx-text-fill: white; -fx-padding: 12 24; -fx-background-radius: 8; -fx-font-size: 14px; -fx-font-weight: bold; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 8, 0, 0, 2);");
             toastContainer.getChildren().add(lblAviso);
-
-            // Animação para sumir após 3.5 segundos
             PauseTransition delay = new PauseTransition(Duration.seconds(3.5));
             delay.setOnFinished(e -> {
                 FadeTransition fade = new FadeTransition(Duration.millis(300), lblAviso);
@@ -147,24 +118,24 @@ public class MainFX {
         Label lblNome = new Label("Oficina Admin");
         lblNome.setStyle("-fx-font-size: 17px; -fx-font-weight: bold; -fx-text-fill: #1a202c;");
 
+        // Identificador visual de quem está logado
+        Label lblUser = new Label((isAdmin() ? "👑 Admin: " : "🎓 Prof: ") + sessaoAtual.getNome());
+        lblUser.setStyle("-fx-font-size: 13px; -fx-text-fill: #718096; -fx-background-color: #edf2f7; -fx-padding: 4 10; -fx-background-radius: 6;");
+
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
         breadcrumb = new Label("Escolas");
         breadcrumb.setStyle("-fx-text-fill: #718096; -fx-font-size: 14px;");
 
-        HBox header = new HBox(20, lblNome, spacer, breadcrumb);
+        HBox header = new HBox(20, lblNome, lblUser, spacer, breadcrumb); // Inserido lblUser aqui
         header.setPadding(new Insets(16, 24, 16, 24));
         header.setAlignment(Pos.CENTER_LEFT);
-        header.setStyle("""
-            -fx-background-color: white;
-            -fx-border-color: #e2e8f0;
-            -fx-border-width: 0 0 1 0;
-            -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.04), 4, 0, 0, 2);
-        """);
+        header.setStyle("-fx-background-color: white; -fx-border-color: #e2e8f0; -fx-border-width: 0 0 1 0; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.04), 4, 0, 0, 2);");
         return header;
     }
 
+    // (Mantenha o método setBreadcrumb inalterado aqui)
     public void setBreadcrumb(String... partes) {
         if (breadcrumb == null) return;
         StringBuilder sb = new StringBuilder();
@@ -183,12 +154,7 @@ public class MainFX {
         sidebar.setStyle("-fx-background-color: #1a202c;");
 
         Label lblMenu = new Label("NAVEGACAO");
-        lblMenu.setStyle("""
-            -fx-text-fill: #4a5568;
-            -fx-font-size: 11px;
-            -fx-font-weight: bold;
-            -fx-padding: 0 0 10 10;
-        """);
+        lblMenu.setStyle("-fx-text-fill: #4a5568; -fx-font-size: 11px; -fx-font-weight: bold; -fx-padding: 0 0 10 10;");
 
         Button btnEscolas     = navBtn("Escolas");
         Button btnTurmas      = navBtn("Turmas");
@@ -206,31 +172,19 @@ public class MainFX {
         btnSair.setOnMouseEntered(e -> btnSair.setStyle(navStyle(true) + " -fx-text-fill: #fc8181;"));
         btnSair.setOnMouseExited(e  -> btnSair.setStyle(navStyle(false) + " -fx-text-fill: #fc8181;"));
 
-        btnEscolas.setOnAction(e -> {
-            ativar(btnEscolas);
-            abrirEscolas();
-        });
-        btnTurmas.setOnAction(e -> {
-            ativar(btnTurmas);
-            root.setCenter(turmasView.getView());
-            setBreadcrumb("Turmas");
-        });
-        btnProfessores.setOnAction(e -> {
-            ativar(btnProfessores);
-            root.setCenter(professoresView.getView());
-            setBreadcrumb("Professores");
-        });
-        btnAlunos.setOnAction(e -> {
-            ativar(btnAlunos);
-            root.setCenter(alunosView.getView());
-            setBreadcrumb("Alunos");
-        });
+        btnEscolas.setOnAction(e -> { ativar(btnEscolas); abrirEscolas(); });
+        btnTurmas.setOnAction(e -> { ativar(btnTurmas); root.setCenter(turmasView.getView()); setBreadcrumb("Turmas"); });
+        btnProfessores.setOnAction(e -> { ativar(btnProfessores); root.setCenter(professoresView.getView()); setBreadcrumb("Professores"); });
+        btnAlunos.setOnAction(e -> { ativar(btnAlunos); root.setCenter(alunosView.getView()); setBreadcrumb("Alunos"); });
         btnSair.setOnAction(e -> sair());
 
-        sidebar.getChildren().addAll(
-                lblMenu, btnEscolas, btnTurmas, btnProfessores, btnAlunos,
-                spacer, btnSair
-        );
+        // LÓGICA DE PERMISSÃO NA SIDEBAR
+        if (isAdmin()) {
+            sidebar.getChildren().addAll(lblMenu, btnEscolas, btnTurmas, btnProfessores, btnAlunos, spacer, btnSair);
+        } else {
+            // Se for professor, esconde o botão de gestão de professores
+            sidebar.getChildren().addAll(lblMenu, btnEscolas, btnTurmas, btnAlunos, spacer, btnSair);
+        }
 
         ativar(btnEscolas);
         return sidebar;

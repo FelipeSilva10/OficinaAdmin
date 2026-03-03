@@ -217,7 +217,7 @@ public class LoginFX extends Application {
         String pass = txtSenhaOculta.getText();
 
         if (user.isBlank() || pass.isBlank()) {
-            mostrarErro("Preencha usuário e senha.");
+            mostrarErro("Preencha usuário/e-mail e senha.");
             return;
         }
 
@@ -226,15 +226,17 @@ public class LoginFX extends Application {
         lblErro.setVisible(false);
         lblErro.setManaged(false);
 
-        Task<Boolean> taskAuth = new Task<>() {
-            @Override protected Boolean call() {
-                return new dao.AdminDAO().autenticar(user, pass);
+        // Usando a nova AutenticacaoDAO que retorna a Sessão
+        Task<core.UsuarioSessao> taskAuth = new Task<>() {
+            @Override protected core.UsuarioSessao call() {
+                return new dao.AutenticacaoDAO().autenticar(user, pass);
             }
         };
 
         taskAuth.setOnSucceeded(e -> {
-            if (taskAuth.getValue()) {
-                new MainFX().iniciarComLoading(stage);
+            core.UsuarioSessao sessao = taskAuth.getValue();
+            if (sessao != null) {
+                new MainFX().iniciarComLoading(stage, sessao); // Passando a sessão!
             } else {
                 mostrarErro("Credenciais inválidas. Tente novamente.");
                 btnEntrar.setText("Entrar no Sistema");
@@ -244,7 +246,7 @@ public class LoginFX extends Application {
         });
 
         taskAuth.setOnFailed(e -> {
-            mostrarErro("Erro de conexao. Verifique a rede.");
+            mostrarErro("Erro de conexão. Verifique a rede.");
             btnEntrar.setText("Entrar no Sistema");
             btnEntrar.setDisable(false);
         });

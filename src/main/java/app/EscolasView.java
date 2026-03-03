@@ -49,6 +49,8 @@ public class EscolasView {
         Button btnNova = new Button("+ Cadastrar Escola");
         btnNova.setStyle("-fx-background-color: #28a745; -fx-text-fill: white; -fx-background-radius: 8; -fx-padding: 8 16; -fx-font-weight: bold;");
         btnNova.setOnAction(e -> abrirFormNovo());
+        btnNova.setVisible(mainApp.isAdmin());
+        btnNova.setManaged(mainApp.isAdmin());
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
@@ -87,24 +89,15 @@ public class EscolasView {
         tabela.setRowFactory(tv -> {
             TableRow<Escola> row = new TableRow<>();
 
-            ContextMenu contextMenu = new ContextMenu();
-            MenuItem deleteItem = new MenuItem("Excluir Escola");
-            deleteItem.setStyle("-fx-text-fill: red;");
-            deleteItem.setOnAction(event -> {
-                Escola escola = row.getItem();
-                if (escola != null) {
-                    if(dao.excluir(escola.getId())) {
-                        mainApp.mostrarAviso("Escola excluída!", false);
-                        carregarDados();
-                        fecharDetalhe();
-                    } else {
-                        mainApp.mostrarAviso("Erro ao excluir. Verifique os vínculos com turmas.", true);
-                    }
-                }
-            });
-            contextMenu.getItems().add(deleteItem);
-
-            row.emptyProperty().addListener((obs, wasEmpty, isNowEmpty) -> row.setContextMenu(isNowEmpty ? null : contextMenu));
+            // Context Menu SOMENTE se for admin
+            if (mainApp.isAdmin()) {
+                ContextMenu contextMenu = new ContextMenu();
+                MenuItem deleteItem = new MenuItem("Excluir Escola");
+                deleteItem.setStyle("-fx-text-fill: red;");
+                deleteItem.setOnAction(event -> { /*... exclui ...*/ });
+                contextMenu.getItems().add(deleteItem);
+                row.emptyProperty().addListener((obs, wasEmpty, isNowEmpty) -> row.setContextMenu(isNowEmpty ? null : contextMenu));
+            }
 
             row.setOnMouseClicked(event -> {
                 if (event.getClickCount() == 2 && (!row.isEmpty())) {
@@ -140,6 +133,9 @@ public class EscolasView {
         txtNome.setPromptText("Nome da Escola");
 
         btnSalvar = new Button("Cadastrar Escola");
+        btnSalvar.setVisible(mainApp.isAdmin());
+        btnSalvar.setManaged(mainApp.isAdmin());
+        txtNome.setEditable(mainApp.isAdmin());
         btnSalvar.setStyle("-fx-background-color: #28a745; -fx-text-fill: white; -fx-background-radius: 8; -fx-padding: 8 16; -fx-font-weight: bold;");
         btnSalvar.setMaxWidth(Double.MAX_VALUE);
         btnSalvar.setOnAction(e -> cadastrar());

@@ -1,14 +1,15 @@
 package app;
 
 import atlantafx.base.theme.PrimerLight;
-import atlantafx.base.theme.Styles;
 import javafx.application.Application;
+import javafx.concurrent.Task;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.*;
+import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
 
 public class LoginFX extends Application {
@@ -17,109 +18,243 @@ public class LoginFX extends Application {
     private PasswordField txtSenhaOculta;
     private TextField txtSenhaVisivel;
     private Label lblErro;
+    private Button btnEntrar;
 
     @Override
     public void start(Stage stage) {
-
         Application.setUserAgentStylesheet(new PrimerLight().getUserAgentStylesheet());
 
-        Label lblLogo = new Label("Oficina Admin");
-        lblLogo.getStyleClass().add(Styles.TITLE_1);
+        // Painel esquerdo: identidade visual
+        VBox painelEsq = new VBox(24);
+        painelEsq.setAlignment(Pos.CENTER);
+        painelEsq.setPadding(new Insets(60, 50, 60, 50));
+        painelEsq.setPrefWidth(340);
+        painelEsq.setMinWidth(280);
+        painelEsq.setStyle("-fx-background-color: linear-gradient(to bottom right, #1a202c, #2d3748);");
 
+        Label lblIniciais = new Label("OA");
+        lblIniciais.setStyle("""
+            -fx-font-size: 40px;
+            -fx-font-weight: bold;
+            -fx-text-fill: #63b3ed;
+            -fx-background-color: #2c5282;
+            -fx-background-radius: 16;
+            -fx-padding: 14 22;
+        """);
+
+        Label lblNome = new Label("Oficina Admin");
+        lblNome.setStyle("-fx-font-size: 26px; -fx-font-weight: bold; -fx-text-fill: white;");
+
+        Label lblDesc = new Label("Painel de gestão escolar\npara o Oficina Code");
+        lblDesc.setStyle("-fx-text-fill: #a0aec0; -fx-font-size: 14px; -fx-text-alignment: center;");
+        lblDesc.setTextAlignment(TextAlignment.CENTER);
+
+        Region sepEsq = new Region();
+        sepEsq.setPrefHeight(1);
+        sepEsq.setMaxWidth(100);
+        sepEsq.setStyle("-fx-background-color: #4a5568;");
+
+        Label lblVersao = new Label("v1.0 — Alpha");
+        lblVersao.setStyle("-fx-text-fill: #4a5568; -fx-font-size: 12px;");
+
+        painelEsq.getChildren().addAll(lblIniciais, lblNome, lblDesc, sepEsq, lblVersao);
+
+        // Painel direito: formulário
+        VBox formulario = new VBox(20);
+        formulario.setAlignment(Pos.CENTER_LEFT);
+        formulario.setMaxWidth(420);
+
+        Label lblBemVindo = new Label("Bem-vindo de volta");
+        lblBemVindo.setStyle("-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #1a202c;");
+
+        Label lblSub = new Label("Entre com suas credenciais de administrador");
+        lblSub.setStyle("-fx-text-fill: #718096; -fx-font-size: 14px;");
+
+        Region sepForm = new Region();
+        sepForm.setPrefHeight(1);
+        sepForm.setMaxWidth(Double.MAX_VALUE);
+        sepForm.setStyle("-fx-background-color: #e2e8f0;");
+
+        // Campo usuário
+        VBox campoUsuario = new VBox(8);
+        Label lUsuario = new Label("Usuário");
+        lUsuario.setStyle("-fx-font-weight: bold; -fx-font-size: 14px; -fx-text-fill: #2d3748;");
         txtUsuario = new TextField();
-        txtUsuario.setPromptText("Usuário");
+        txtUsuario.setPromptText("Digite seu usuário");
+        txtUsuario.setPrefHeight(48);
+        txtUsuario.setStyle("""
+            -fx-background-color: white;
+            -fx-border-color: #e2e8f0;
+            -fx-border-radius: 8;
+            -fx-background-radius: 8;
+            -fx-font-size: 15px;
+            -fx-padding: 0 14;
+        """);
+        campoUsuario.getChildren().addAll(lUsuario, txtUsuario);
+
+        // Campo senha
+        VBox campoSenha = new VBox(8);
+        Label lSenha = new Label("Senha");
+        lSenha.setStyle("-fx-font-weight: bold; -fx-font-size: 14px; -fx-text-fill: #2d3748;");
+
+        String estiloInput = """
+            -fx-background-color: white;
+            -fx-border-color: #e2e8f0;
+            -fx-border-radius: 8;
+            -fx-background-radius: 8;
+            -fx-font-size: 15px;
+            -fx-padding: 0 14;
+        """;
 
         txtSenhaOculta = new PasswordField();
-        txtSenhaOculta.setPromptText("Senha");
+        txtSenhaOculta.setPromptText("Digite sua senha");
+        txtSenhaOculta.setPrefHeight(48);
+        txtSenhaOculta.setStyle(estiloInput);
 
         txtSenhaVisivel = new TextField();
-        txtSenhaVisivel.setPromptText("Senha");
+        txtSenhaVisivel.setPromptText("Digite sua senha");
+        txtSenhaVisivel.setPrefHeight(48);
+        txtSenhaVisivel.setStyle(estiloInput);
         txtSenhaVisivel.setVisible(false);
         txtSenhaVisivel.setManaged(false);
-
         txtSenhaVisivel.textProperty().bindBidirectional(txtSenhaOculta.textProperty());
 
-        StackPane senhaStack = new StackPane(txtSenhaOculta, txtSenhaVisivel);
-        HBox.setHgrow(senhaStack, Priority.ALWAYS);
-
-        Button btnVerSenha = new Button("👁");
-        btnVerSenha.setFocusTraversable(false);
-        btnVerSenha.setOnAction(e -> {
-            boolean visivel = txtSenhaVisivel.isVisible();
-            txtSenhaVisivel.setVisible(!visivel);
-            txtSenhaVisivel.setManaged(!visivel);
-            txtSenhaOculta.setVisible(visivel);
-            txtSenhaOculta.setManaged(visivel);
+        Button btnVer = new Button("Ver");
+        btnVer.setPrefHeight(48);
+        btnVer.setPrefWidth(64);
+        btnVer.setStyle("""
+            -fx-background-color: #edf2f7;
+            -fx-background-radius: 8;
+            -fx-border-radius: 8;
+            -fx-cursor: hand;
+            -fx-font-size: 13px;
+            -fx-font-weight: bold;
+            -fx-text-fill: #4a5568;
+        """);
+        btnVer.setFocusTraversable(false);
+        btnVer.setOnAction(e -> {
+            boolean v = txtSenhaVisivel.isVisible();
+            txtSenhaVisivel.setVisible(!v); txtSenhaVisivel.setManaged(!v);
+            txtSenhaOculta.setVisible(v);   txtSenhaOculta.setManaged(v);
+            btnVer.setText(v ? "Ver" : "Ocultar");
         });
 
-        HBox boxSenha = new HBox(8, senhaStack, btnVerSenha);
+        StackPane stackSenha = new StackPane(txtSenhaOculta, txtSenhaVisivel);
+        HBox.setHgrow(stackSenha, Priority.ALWAYS);
+        HBox boxSenha = new HBox(8, stackSenha, btnVer);
         boxSenha.setAlignment(Pos.CENTER_LEFT);
+        campoSenha.getChildren().addAll(lSenha, boxSenha);
 
-        Button btnEntrar = new Button("Entrar no Sistema");
-        btnEntrar.getStyleClass().add(Styles.ACCENT);
+        // Mensagem de erro
+        lblErro = new Label();
+        lblErro.setStyle("""
+            -fx-text-fill: #c53030;
+            -fx-font-size: 14px;
+            -fx-font-weight: bold;
+            -fx-background-color: #fff5f5;
+            -fx-border-color: #feb2b2;
+            -fx-border-radius: 8;
+            -fx-background-radius: 8;
+            -fx-padding: 12 16;
+        """);
+        lblErro.setMaxWidth(Double.MAX_VALUE);
+        lblErro.setWrapText(true);
+        lblErro.setVisible(false);
+        lblErro.setManaged(false);
+
+        // Botão entrar
+        btnEntrar = new Button("Entrar no Sistema");
         btnEntrar.setMaxWidth(Double.MAX_VALUE);
-
+        btnEntrar.setPrefHeight(50);
+        btnEntrar.setStyle("""
+            -fx-background-color: #3182ce;
+            -fx-text-fill: white;
+            -fx-font-size: 16px;
+            -fx-font-weight: bold;
+            -fx-background-radius: 10;
+            -fx-cursor: hand;
+        """);
+        btnEntrar.setOnMouseEntered(e ->
+                btnEntrar.setStyle(btnEntrar.getStyle().replace("#3182ce", "#2b6cb0")));
+        btnEntrar.setOnMouseExited(e ->
+                btnEntrar.setStyle(btnEntrar.getStyle().replace("#2b6cb0", "#3182ce")));
         btnEntrar.setOnAction(e -> tentarLogin(stage));
 
-        lblErro = new Label();
-        lblErro.getStyleClass().add(Styles.DANGER);
-        lblErro.setVisible(false);
-
-        VBox formCard = new VBox(20);
-        formCard.getChildren().addAll(
-                lblLogo,
-                txtUsuario,
-                boxSenha,
-                lblErro,
-                btnEntrar
+        formulario.getChildren().addAll(
+                lblBemVindo, lblSub, sepForm,
+                campoUsuario, campoSenha,
+                lblErro, btnEntrar
         );
 
-        formCard.setAlignment(Pos.CENTER);
-        formCard.setPadding(new Insets(40));
-        formCard.setMaxWidth(420);
-        formCard.setFillWidth(true);
-        formCard.getStyleClass().add(Styles.ELEVATED_3);
+        // Centraliza o formulario no painel direito, que expande para preencher tudo
+        StackPane painelDir = new StackPane(formulario);
+        painelDir.setPadding(new Insets(60));
+        painelDir.setStyle("-fx-background-color: #f7fafc;");
+        HBox.setHgrow(painelDir, Priority.ALWAYS);
 
-        VBox.setVgrow(btnEntrar, Priority.NEVER);
+        // Root preenche toda a cena - sem area preta
+        HBox root = new HBox(painelEsq, painelDir);
+        root.setMinSize(0, 0);
+        root.setStyle("-fx-background-color: #f7fafc;");
 
-        StackPane root = new StackPane(formCard);
-        root.setPadding(new Insets(40));
-        root.setStyle("-fx-background-color: -color-bg-default;");
-
-        Scene scene = new Scene(root, 900, 600);
-
+        Scene scene = new Scene(root, 860, 560);
         scene.setOnKeyPressed(e -> {
-            if (e.getCode() == KeyCode.ENTER) {
-                tentarLogin(stage);
-            }
+            if (e.getCode() == KeyCode.ENTER) tentarLogin(stage);
         });
 
-        stage.setTitle("Oficina Admin");
+        stage.setTitle("Oficina Admin — Login");
         stage.setScene(scene);
-        stage.setMinWidth(480);
-        stage.setMinHeight(420);
+        stage.setMinWidth(640);
+        stage.setMinHeight(460);
+        stage.setWidth(860);
+        stage.setHeight(560);
         stage.show();
-
         txtUsuario.requestFocus();
     }
 
     private void tentarLogin(Stage stage) {
-
-        String user = txtUsuario.getText();
+        String user = txtUsuario.getText().trim();
         String pass = txtSenhaOculta.getText();
 
         if (user.isBlank() || pass.isBlank()) {
-            lblErro.setText("Preencha todos os campos.");
-            lblErro.setVisible(true);
+            mostrarErro("Preencha usuário e senha.");
             return;
         }
 
-        if (new dao.AdminDAO().autenticar(user, pass)) {
-            new MainFX().iniciarSistema(stage);
-        } else {
-            lblErro.setText("Credenciais inválidas.");
-            lblErro.setVisible(true);
-            txtSenhaOculta.clear();
-        }
+        btnEntrar.setText("Verificando...");
+        btnEntrar.setDisable(true);
+        lblErro.setVisible(false);
+        lblErro.setManaged(false);
+
+        Task<Boolean> taskAuth = new Task<>() {
+            @Override protected Boolean call() {
+                return new dao.AdminDAO().autenticar(user, pass);
+            }
+        };
+
+        taskAuth.setOnSucceeded(e -> {
+            if (taskAuth.getValue()) {
+                new MainFX().iniciarComLoading(stage);
+            } else {
+                mostrarErro("Credenciais inválidas. Tente novamente.");
+                btnEntrar.setText("Entrar no Sistema");
+                btnEntrar.setDisable(false);
+                txtSenhaOculta.clear();
+            }
+        });
+
+        taskAuth.setOnFailed(e -> {
+            mostrarErro("Erro de conexao. Verifique a rede.");
+            btnEntrar.setText("Entrar no Sistema");
+            btnEntrar.setDisable(false);
+        });
+
+        new Thread(taskAuth).start();
+    }
+
+    private void mostrarErro(String msg) {
+        lblErro.setText(msg);
+        lblErro.setVisible(true);
+        lblErro.setManaged(true);
     }
 }

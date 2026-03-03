@@ -1,18 +1,13 @@
 package app;
 
 import core.Escola;
+import core.Turma;
+import javafx.application.Platform;
+import javafx.concurrent.Task;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.control.Alert;
-import javafx.scene.control.Button;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.Dialog;
-import javafx.scene.control.Label;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
-import javafx.scene.layout.VBox;
+import javafx.scene.control.*;
+import javafx.scene.layout.*;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 
@@ -28,158 +23,274 @@ public class MainFX {
     private ProfessoresView professoresView;
     private AlunosView alunosView;
 
-    public void iniciarSistema(Stage stage) {
+    private Button btnAtivo;
+    private Label breadcrumb;
+
+    // ── Entry point: tela de loading + pre-carregamento ───────────────────────
+
+    public void iniciarComLoading(Stage stage) {
         this.stage = stage;
-        root = new BorderPane();
-        root.setStyle("-fx-font-size: 14px; -fx-background-color: #f6f8fb;");
 
-        root.setTop(criarHeaderSistema());
-        root.setLeft(criarSidebar());
+        VBox loadingPane = new VBox(24);
+        loadingPane.setAlignment(Pos.CENTER);
+        loadingPane.setStyle("-fx-background-color: #1a202c;");
 
-        abrirEscolas();
-        stage.getScene().setRoot(root);
+        Label lblIniciais = new Label("OA");
+        lblIniciais.setStyle("""
+            -fx-font-size: 40px;
+            -fx-font-weight: bold;
+            -fx-text-fill: #63b3ed;
+            -fx-background-color: #2c5282;
+            -fx-background-radius: 16;
+            -fx-padding: 14 22;
+        """);
+
+        Label lblMsg = new Label("Carregando dados...");
+        lblMsg.setStyle("-fx-text-fill: #a0aec0; -fx-font-size: 16px; -fx-font-weight: bold;");
+
+        ProgressBar progressBar = new ProgressBar(-1);
+        progressBar.setPrefWidth(280);
+        progressBar.setPrefHeight(8);
+        progressBar.setStyle("-fx-accent: #3182ce;");
+
+        Label lblDetalhe = new Label("Conectando ao banco de dados...");
+        lblDetalhe.setStyle("-fx-text-fill: #4a5568; -fx-font-size: 13px;");
+
+        loadingPane.getChildren().addAll(lblIniciais, lblMsg, progressBar, lblDetalhe);
+
+        stage.getScene().setRoot(loadingPane);
+        stage.setWidth(960);
+        stage.setHeight(660);
+
+        Task<Void> taskCarregar = new Task<>() {
+            @Override
+            protected Void call() throws Exception {
+                updateMessage("Carregando escolas...");
+                Platform.runLater(() -> escolasView = new EscolasView(MainFX.this));
+                Thread.sleep(100);
+
+                updateMessage("Carregando turmas...");
+                Platform.runLater(() -> turmasView = new TurmasView(MainFX.this));
+                Thread.sleep(100);
+
+                updateMessage("Carregando professores...");
+                Platform.runLater(() -> professoresView = new ProfessoresView(MainFX.this));
+                Thread.sleep(100);
+
+                updateMessage("Carregando alunos...");
+                Platform.runLater(() -> alunosView = new AlunosView(MainFX.this));
+                Thread.sleep(200);
+
+                return null;
+            }
+        };
+
+        taskCarregar.messageProperty().addListener((obs, old, msg) ->
+                Platform.runLater(() -> lblDetalhe.setText(msg)));
+
+        taskCarregar.setOnSucceeded(e -> Platform.runLater(this::iniciarSistema));
+
+        taskCarregar.setOnFailed(e -> Platform.runLater(() -> {
+            lblMsg.setText("Erro ao conectar!");
+            lblMsg.setStyle("-fx-text-fill: #fc8181; -fx-font-size: 16px; -fx-font-weight: bold;");
+            lblDetalhe.setText("Verifique a conexao com o banco de dados e reinicie o sistema.");
+            progressBar.setProgress(0);
+        }));
+
+        new Thread(taskCarregar).start();
     }
 
-    // FIX 1: Removed duplicate criarHeaderSistema() — kept only this correct version
-    private HBox criarHeaderSistema() {
-        Label lblTitulo = new Label("Oficina Admin");
-        lblTitulo.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #1f2d3d;");
+    // ── Monta a interface principal ───────────────────────────────────────────
 
-        Label lblSubtitulo = new Label("Painel administrativo");
-        lblSubtitulo.setStyle("-fx-text-fill: #6b7785;");
+    private void iniciarSistema() {
+        root = new BorderPane();
+        root.setStyle("-fx-font-size: 15px; -fx-background-color: #f0f2f5;");
+        root.setTop(criarHeader());
+        root.setLeft(criarSidebar());
+        abrirEscolas();
+        stage.getScene().setRoot(root);
+        stage.setMinWidth(960);
+        stage.setMinHeight(620);
+    }
 
-        VBox blocoTitulo = new VBox(2, lblTitulo, lblSubtitulo);
+    // ── Header ────────────────────────────────────────────────────────────────
+
+    private HBox criarHeader() {
+        Label lblNome = new Label("Oficina Admin");
+        lblNome.setStyle("-fx-font-size: 17px; -fx-font-weight: bold; -fx-text-fill: #1a202c;");
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        Label lblHint = new Label("Versão Alpha");
-        lblHint.setStyle("-fx-text-fill: #6b7785; -fx-font-size: 15px;");
+        breadcrumb = new Label("Escolas");
+        breadcrumb.setStyle("-fx-text-fill: #718096; -fx-font-size: 14px;");
 
-        HBox header = new HBox(12, blocoTitulo, spacer, lblHint);
-        header.setPadding(new Insets(12, 20, 12, 20));
+        HBox header = new HBox(20, lblNome, spacer, breadcrumb);
+        header.setPadding(new Insets(16, 24, 16, 24));
         header.setAlignment(Pos.CENTER_LEFT);
-        header.setStyle("-fx-background-color: white; -fx-border-color: #e5e9ef; -fx-border-width: 0 0 1 0;");
+        header.setStyle("""
+            -fx-background-color: white;
+            -fx-border-color: #e2e8f0;
+            -fx-border-width: 0 0 1 0;
+            -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.04), 4, 0, 0, 2);
+        """);
         return header;
     }
 
+    public void setBreadcrumb(String... partes) {
+        if (breadcrumb == null) return;
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < partes.length; i++) {
+            if (i > 0) sb.append("   >   ");
+            sb.append(partes[i]);
+        }
+        breadcrumb.setText(sb.toString());
+        breadcrumb.setStyle("-fx-text-fill: #2d3748; -fx-font-size: 14px; -fx-font-weight: bold;");
+    }
+
+    // ── Sidebar ───────────────────────────────────────────────────────────────
+
     private VBox criarSidebar() {
-        VBox sidebar = new VBox(10);
-        sidebar.setPadding(new Insets(16));
+        VBox sidebar = new VBox(4);
+        sidebar.setPadding(new Insets(24, 14, 24, 14));
         sidebar.setPrefWidth(220);
-        sidebar.setStyle("-fx-background-color: white; -fx-border-color: #e5e9ef; -fx-border-width: 0 1 0 0;");
+        sidebar.setStyle("-fx-background-color: #1a202c;");
 
-        Label title = new Label("Módulos");
-        title.setStyle("-fx-font-weight: bold; -fx-text-fill: #2d3748; -fx-padding: 0 0 8 0;");
+        Label lblMenu = new Label("NAVEGACAO");
+        lblMenu.setStyle("""
+            -fx-text-fill: #4a5568;
+            -fx-font-size: 11px;
+            -fx-font-weight: bold;
+            -fx-padding: 0 0 10 10;
+        """);
 
-        Button btnEscolas = criarBotaoSidebar("Escolas");
-        Button btnTurmas = criarBotaoSidebar("Turmas");
-        Button btnProfessores = criarBotaoSidebar("Professores");
-        Button btnAlunos = criarBotaoSidebar("Alunos");
-        Button btnSair = criarBotaoSidebar("Sair");
-        btnSair.setStyle("-fx-background-color: transparent; -fx-alignment: CENTER-LEFT; -fx-padding: 10; -fx-text-fill: #cb2431;");
+        Button btnEscolas     = navBtn("Escolas");
+        Button btnTurmas      = navBtn("Turmas");
+        Button btnProfessores = navBtn("Professores");
+        Button btnAlunos      = navBtn("Alunos");
 
-        btnEscolas.setOnAction(e -> abrirEscolas());
-        btnTurmas.setOnAction(e -> root.setCenter(getTurmasView().getView()));
-        btnProfessores.setOnAction(e -> root.setCenter(getProfessoresView().getView()));
-        btnAlunos.setOnAction(e -> root.setCenter(getAlunosView().getView()));
+        Region spacer = new Region();
+        VBox.setVgrow(spacer, Priority.ALWAYS);
+
+        Button btnSair = new Button("Sair");
+        btnSair.setMaxWidth(Double.MAX_VALUE);
+        btnSair.setPadding(new Insets(12, 14, 12, 14));
+        btnSair.setAlignment(Pos.CENTER_LEFT);
+        btnSair.setStyle(navStyle(false) + " -fx-text-fill: #fc8181;");
+        btnSair.setOnMouseEntered(e -> btnSair.setStyle(navStyle(true) + " -fx-text-fill: #fc8181;"));
+        btnSair.setOnMouseExited(e  -> btnSair.setStyle(navStyle(false) + " -fx-text-fill: #fc8181;"));
+
+        btnEscolas.setOnAction(e -> {
+            ativar(btnEscolas);
+            abrirEscolas();
+        });
+        btnTurmas.setOnAction(e -> {
+            ativar(btnTurmas);
+            root.setCenter(turmasView.getView());
+            setBreadcrumb("Turmas");
+        });
+        btnProfessores.setOnAction(e -> {
+            ativar(btnProfessores);
+            root.setCenter(professoresView.getView());
+            setBreadcrumb("Professores");
+        });
+        btnAlunos.setOnAction(e -> {
+            ativar(btnAlunos);
+            root.setCenter(alunosView.getView());
+            setBreadcrumb("Alunos");
+        });
         btnSair.setOnAction(e -> sair());
 
-        sidebar.getChildren().addAll(title, btnEscolas, btnTurmas, btnProfessores, btnAlunos, btnSair);
+        sidebar.getChildren().addAll(
+                lblMenu, btnEscolas, btnTurmas, btnProfessores, btnAlunos,
+                spacer, btnSair
+        );
+
+        ativar(btnEscolas);
         return sidebar;
     }
 
-    private Button criarBotaoSidebar(String texto) {
+    private String navStyle(boolean hover) {
+        return hover
+                ? "-fx-background-color: #2d3748; -fx-text-fill: #e2e8f0; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand; -fx-alignment: CENTER-LEFT;"
+                : "-fx-background-color: transparent; -fx-text-fill: #a0aec0; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand; -fx-alignment: CENTER-LEFT;";
+    }
+
+    private String navStyleAtivo() {
+        return "-fx-background-color: #3182ce; -fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold; -fx-background-radius: 8; -fx-cursor: hand; -fx-alignment: CENTER-LEFT;";
+    }
+
+    private Button navBtn(String texto) {
         Button b = new Button(texto);
         b.setMaxWidth(Double.MAX_VALUE);
-        b.setStyle("-fx-background-color: transparent; -fx-alignment: CENTER-LEFT; -fx-padding: 10;");
-        b.setOnMouseEntered(e -> b.setStyle("-fx-background-color: #edf2f7; -fx-alignment: CENTER-LEFT; -fx-padding: 10; -fx-cursor: hand;"));
-        b.setOnMouseExited(e -> b.setStyle("-fx-background-color: transparent; -fx-alignment: CENTER-LEFT; -fx-padding: 10;"));
+        b.setPadding(new Insets(12, 14, 12, 14));
+        b.setStyle(navStyle(false));
+        b.setOnMouseEntered(e -> { if (b != btnAtivo) b.setStyle(navStyle(true)); });
+        b.setOnMouseExited(e  -> { if (b != btnAtivo) b.setStyle(navStyle(false)); });
         return b;
     }
 
+    private void ativar(Button btn) {
+        if (btnAtivo != null) btnAtivo.setStyle(navStyle(false));
+        btnAtivo = btn;
+        btn.setStyle(navStyleAtivo());
+    }
+
+    // ── Navegacao publica ─────────────────────────────────────────────────────
+
     public void abrirEscolas() {
-        root.setCenter(getEscolasView().getView());
+        root.setCenter(escolasView.getView());
+        setBreadcrumb("Escolas");
     }
 
     public void abrirTurmas(Escola escola) {
-        TurmasView tv = getTurmasView();
-        root.setCenter(tv.getView());
-        if (escola != null) tv.selecionarEscola(escola);
+        root.setCenter(turmasView.getView());
+        if (escola != null) turmasView.selecionarEscola(escola);
+        setBreadcrumb("Turmas");
     }
 
-    public void abrirDashboardTurma(core.Turma turma) {
+    public void abrirDashboardTurma(Turma turma) {
         root.setCenter(new TurmaDashboardView(this, turma).getView());
+        setBreadcrumb("Turmas", turma.getEscolaNome(), turma.getNome());
     }
 
     public void abrirDashboardEscola(Escola escola) {
         root.setCenter(new EscolaDashboardView(this, escola).getView());
+        setBreadcrumb("Escolas", escola.getNome());
     }
 
-    private EscolasView getEscolasView() {
-        if (escolasView == null) escolasView = new EscolasView(this);
-        return escolasView;
-    }
+    // ── Getters das views ─────────────────────────────────────────────────────
 
-    private TurmasView getTurmasView() {
-        if (turmasView == null) turmasView = new TurmasView(this);
-        return turmasView;
-    }
+    public EscolasView getEscolasView()         { return escolasView; }
+    public TurmasView getTurmasView()           { return turmasView; }
+    public ProfessoresView getProfessoresView() { return professoresView; }
+    public AlunosView getAlunosView()           { return alunosView; }
 
-    private ProfessoresView getProfessoresView() {
-        if (professoresView == null) professoresView = new ProfessoresView(this);
-        return professoresView;
-    }
-
-    // FIX 2: Removed duplicate getAlunosView() — kept only this one
-    private AlunosView getAlunosView() {
-        if (alunosView == null) alunosView = new AlunosView(this);
-        return alunosView;
-    }
+    // ── Utilitarios de UI ─────────────────────────────────────────────────────
 
     public void configurarModal(Dialog<?> dialog) {
         Stage owner = getStage();
-        boolean estavaFullscreen = owner != null && owner.isFullScreen();
-
         if (owner != null) {
             dialog.initOwner(owner);
             dialog.initModality(Modality.WINDOW_MODAL);
         }
-
-        dialog.setOnShown(event -> {
-            if (estavaFullscreen && owner != null) owner.setFullScreen(true);
-        });
-
-        dialog.setOnHidden(event -> {
-            if (estavaFullscreen && owner != null) owner.setFullScreen(true);
-            if (owner != null) owner.toFront();
-        });
+        dialog.setOnHidden(e -> { if (owner != null) owner.toFront(); });
     }
 
     public Optional<ButtonType> exibirAlerta(Alert alert) {
         Stage owner = getStage();
-        boolean estavaFullscreen = owner != null && owner.isFullScreen();
-
         if (owner != null) {
             alert.initOwner(owner);
             alert.initModality(Modality.WINDOW_MODAL);
         }
-
         Optional<ButtonType> resultado = alert.showAndWait();
-
-        if (estavaFullscreen && owner != null) owner.setFullScreen(true);
         if (owner != null) owner.toFront();
         return resultado;
-    } // FIX 3: Added missing closing brace for exibirAlerta()
-
-    public Stage getStage() {
-        return stage;
     }
 
+    public Stage getStage() { return stage; }
+
     private void sair() {
-        try {
-            new LoginFX().start(stage);
-        } catch (Exception e) {
-        }
+        try { new LoginFX().start(stage); } catch (Exception ignored) {}
     }
 }

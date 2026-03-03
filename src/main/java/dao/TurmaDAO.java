@@ -37,23 +37,22 @@ public class TurmaDAO {
         } catch (SQLException e) { return false; }
     }
 
-    // Traz TODAS as turmas do banco (Para a janela global)
+    private static final String BASE_SELECT =
+            "SELECT t.*, e.nome as escola_nome, p.nome as prof_nome " +
+                    "FROM turmas t " +
+                    "JOIN escolas e ON t.escola_id = e.id " +
+                    "LEFT JOIN perfis p ON t.professor_id = p.id ";
+
     public List<Turma> listarTodas() {
-        return buscarComFiltro("SELECT t.*, e.nome as escola_nome, p.nome as prof_nome FROM turmas t JOIN escolas e ON t.escola_id = e.id LEFT JOIN perfis p ON t.professor_id = p.id ORDER BY t.created_at DESC", null);
+        return buscarComFiltro(BASE_SELECT + "ORDER BY t.created_at DESC", null);
     }
 
-    // Traz turmas SÓ de uma escola (Para o Dashboard)
     public List<Turma> listarPorEscola(String escolaId) {
-        return buscarComFiltro("SELECT t.*, e.nome as escola_nome, p.nome as prof_nome FROM turmas t JOIN escolas e ON t.escola_id = e.id LEFT JOIN perfis p ON t.professor_id = p.id WHERE t.escola_id = ?::uuid ORDER BY t.created_at DESC", escolaId);
+        return buscarComFiltro(BASE_SELECT + "WHERE t.escola_id = ?::uuid ORDER BY t.created_at DESC", escolaId);
     }
 
     public List<Turma> listarPorProfessor(String professorId) {
-        return buscarComFiltro(
-                "SELECT t.*, e.nome as escola_nome, p.nome as prof_nome " +
-                        "FROM turmas t JOIN escolas e ON t.escola_id = e.id " +
-                        "LEFT JOIN perfis p ON t.professor_id = p.id " +
-                        "WHERE t.professor_id = ?::uuid ORDER BY t.created_at DESC",
-                professorId);
+        return buscarComFiltro(BASE_SELECT + "WHERE t.professor_id = ?::uuid ORDER BY e.nome, t.nome", professorId);
     }
 
     private List<Turma> buscarComFiltro(String sql, String param) {
@@ -63,7 +62,14 @@ public class TurmaDAO {
             if (param != null) stmt.setString(1, param);
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
-                    turmas.add(new Turma(rs.getString("id"), rs.getString("escola_id"), rs.getString("nome"), rs.getString("ano_letivo"), rs.getString("escola_nome"), rs.getString("prof_nome")));
+                    turmas.add(new Turma(
+                            rs.getString("id"),
+                            rs.getString("escola_id"),
+                            rs.getString("nome"),
+                            rs.getString("ano_letivo"),
+                            rs.getString("escola_nome"),
+                            rs.getString("prof_nome")
+                    ));
                 }
             }
         } catch (SQLException e) { e.printStackTrace(); }

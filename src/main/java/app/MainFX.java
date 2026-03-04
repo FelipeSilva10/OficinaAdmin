@@ -23,10 +23,16 @@ public class MainFX {
 
     private UsuarioSessao sessaoAtual;
 
+    // Módulos gerais
     private EscolasView escolasView;
     private TurmasView turmasView;
     private ProfessoresView professoresView;
     private AlunosView alunosView;
+
+    // Módulos exclusivos do professor
+    private CronogramaView cronogramaView;
+    private ChamadaView chamadaView;
+    private RegistroHorasView registroHorasView;
 
     private Button btnAtivo;
     private Label breadcrumb;
@@ -35,13 +41,12 @@ public class MainFX {
         return sessaoAtual != null && "ADMIN".equals(sessaoAtual.getRole());
     }
 
-    // PATCH: expõe a sessão para as Views filtrarem por professor
     public UsuarioSessao getSessao() {
         return sessaoAtual;
     }
 
     public void iniciarComLoading(Stage stage, UsuarioSessao sessao) {
-        this.stage = stage;
+        this.stage       = stage;
         this.sessaoAtual = sessao;
 
         VBox loadingPane = new VBox(24);
@@ -63,36 +68,50 @@ public class MainFX {
         lblDetalhe.setStyle("-fx-text-fill: #4a5568; -fx-font-size: 13px;");
 
         loadingPane.getChildren().addAll(lblIniciais, lblMsg, progressBar, lblDetalhe);
-
         stage.getScene().setRoot(loadingPane);
-        stage.setWidth(960);
-        stage.setHeight(660);
+        stage.setWidth(1100);
+        stage.setHeight(700);
 
         Task<Void> taskCarregar = new Task<>() {
             @Override protected Void call() throws Exception {
                 updateMessage("Carregando escolas...");
                 Platform.runLater(() -> escolasView = new EscolasView(MainFX.this));
-                Thread.sleep(100);
+                Thread.sleep(80);
 
                 updateMessage("Carregando turmas...");
                 Platform.runLater(() -> turmasView = new TurmasView(MainFX.this));
-                Thread.sleep(100);
+                Thread.sleep(80);
 
-                // Professores: apenas admin carrega esta view
                 if (isAdmin()) {
                     updateMessage("Carregando professores...");
                     Platform.runLater(() -> professoresView = new ProfessoresView(MainFX.this));
-                    Thread.sleep(100);
+                    Thread.sleep(80);
                 }
 
                 updateMessage("Carregando alunos...");
                 Platform.runLater(() -> alunosView = new AlunosView(MainFX.this));
-                Thread.sleep(200);
+                Thread.sleep(80);
+
+                if (!isAdmin()) {
+                    updateMessage("Carregando cronograma...");
+                    Platform.runLater(() -> cronogramaView = new CronogramaView(MainFX.this));
+                    Thread.sleep(80);
+
+                    updateMessage("Preparando módulo de chamada...");
+                    Platform.runLater(() -> chamadaView = new ChamadaView(MainFX.this));
+                    Thread.sleep(80);
+
+                    updateMessage("Carregando registro de horas...");
+                    Platform.runLater(() -> registroHorasView = new RegistroHorasView(MainFX.this));
+                    Thread.sleep(80);
+                }
+
                 return null;
             }
         };
 
-        taskCarregar.messageProperty().addListener((obs, old, msg) -> Platform.runLater(() -> lblDetalhe.setText(msg)));
+        taskCarregar.messageProperty().addListener((obs, old, msg) ->
+                Platform.runLater(() -> lblDetalhe.setText(msg)));
         taskCarregar.setOnSucceeded(e -> Platform.runLater(this::iniciarSistema));
         new Thread(taskCarregar).start();
     }
@@ -116,7 +135,10 @@ public class MainFX {
     public void mostrarAviso(String mensagem, boolean isErro) {
         Platform.runLater(() -> {
             Label lblAviso = new Label(mensagem);
-            lblAviso.setStyle("-fx-background-color: " + (isErro ? "#e53e3e" : "#28a745") + "; -fx-text-fill: white; -fx-padding: 12 24; -fx-background-radius: 8; -fx-font-size: 14px; -fx-font-weight: bold; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 8, 0, 0, 2);");
+            lblAviso.setStyle("-fx-background-color: " + (isErro ? "#e53e3e" : "#28a745") +
+                    "; -fx-text-fill: white; -fx-padding: 12 24; -fx-background-radius: 8;" +
+                    " -fx-font-size: 14px; -fx-font-weight: bold;" +
+                    " -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 8, 0, 0, 2);");
             toastContainer.getChildren().add(lblAviso);
             PauseTransition delay = new PauseTransition(Duration.seconds(3.5));
             delay.setOnFinished(e -> {
@@ -163,59 +185,96 @@ public class MainFX {
     private VBox criarSidebar() {
         VBox sidebar = new VBox(4);
         sidebar.setPadding(new Insets(24, 14, 24, 14));
-        sidebar.setPrefWidth(220);
+        sidebar.setPrefWidth(230);
         sidebar.setStyle("-fx-background-color: #1a202c;");
 
-        Label lblMenu = new Label("NAVEGACAO");
-        lblMenu.setStyle("-fx-text-fill: #4a5568; -fx-font-size: 11px; -fx-font-weight: bold; -fx-padding: 0 0 10 10;");
+        Label lblGestao = secaoLabel("GESTÃO");
+        Button btnEscolas = navBtn("🏫  Escolas");
+        Button btnTurmas  = navBtn("📚  Turmas");
+        Button btnAlunos  = navBtn("🎒  Alunos");
 
-        Button btnEscolas     = navBtn("Escolas");
-        Button btnTurmas      = navBtn("Turmas");
-        Button btnProfessores = navBtn("Professores");
-        Button btnAlunos      = navBtn("Alunos");
+        btnEscolas.setOnAction(e -> { ativar(btnEscolas); abrirEscolas(); });
+        btnTurmas.setOnAction(e  -> { ativar(btnTurmas);  root.setCenter(turmasView.getView());  setBreadcrumb("Turmas"); });
+        btnAlunos.setOnAction(e  -> { ativar(btnAlunos);  root.setCenter(alunosView.getView());   setBreadcrumb("Alunos"); });
 
         Region spacer = new Region();
         VBox.setVgrow(spacer, Priority.ALWAYS);
 
-        Button btnSair = new Button("Sair");
-        btnSair.setMaxWidth(Double.MAX_VALUE);
-        btnSair.setPadding(new Insets(12, 14, 12, 14));
-        btnSair.setAlignment(Pos.CENTER_LEFT);
+        Button btnSair = navBtn("⎋  Sair");
         btnSair.setStyle(navStyle(false) + " -fx-text-fill: #fc8181;");
-        btnSair.setOnMouseEntered(e -> btnSair.setStyle(navStyle(true) + " -fx-text-fill: #fc8181;"));
+        btnSair.setOnMouseEntered(e -> btnSair.setStyle(navStyle(true)  + " -fx-text-fill: #fc8181;"));
         btnSair.setOnMouseExited(e  -> btnSair.setStyle(navStyle(false) + " -fx-text-fill: #fc8181;"));
-
-        btnEscolas.setOnAction(e -> { ativar(btnEscolas); abrirEscolas(); });
-        btnTurmas.setOnAction(e -> { ativar(btnTurmas); root.setCenter(turmasView.getView()); setBreadcrumb("Turmas"); });
-        btnProfessores.setOnAction(e -> { ativar(btnProfessores); root.setCenter(professoresView.getView()); setBreadcrumb("Professores"); });
-        btnAlunos.setOnAction(e -> { ativar(btnAlunos); root.setCenter(alunosView.getView()); setBreadcrumb("Alunos"); });
         btnSair.setOnAction(e -> sair());
 
         if (isAdmin()) {
-            sidebar.getChildren().addAll(lblMenu, btnEscolas, btnTurmas, btnProfessores, btnAlunos, spacer, btnSair);
+            Button btnProfessores = navBtn("👤  Professores");
+            btnProfessores.setOnAction(e -> {
+                ativar(btnProfessores);
+                root.setCenter(professoresView.getView());
+                setBreadcrumb("Professores");
+            });
+            sidebar.getChildren().addAll(
+                    lblGestao, btnEscolas, btnTurmas, btnProfessores, btnAlunos,
+                    spacer, btnSair);
+            ativar(btnEscolas);
         } else {
-            // PATCH: Professor não vê gestão de professores
-            sidebar.getChildren().addAll(lblMenu, btnEscolas, btnTurmas, btnAlunos, spacer, btnSair);
+            // Professor: seção de Gestão + seção de Módulos
+            Label lblModulos = secaoLabel("MÓDULOS");
+
+            Button btnCronograma    = navBtn("📅  Cronograma");
+            Button btnChamada       = navBtn("✅  Chamada");
+            Button btnRegistroHoras = navBtn("🕐  Registro de Horas");
+
+            btnCronograma.setOnAction(e -> {
+                ativar(btnCronograma);
+                root.setCenter(cronogramaView.getView());
+                setBreadcrumb("Cronograma");
+            });
+            btnChamada.setOnAction(e -> {
+                ativar(btnChamada);
+                root.setCenter(chamadaView.getView());
+                setBreadcrumb("Chamada");
+            });
+            btnRegistroHoras.setOnAction(e -> {
+                ativar(btnRegistroHoras);
+                root.setCenter(registroHorasView.getView());
+                setBreadcrumb("Registro de Horas");
+            });
+
+            Separator sep = new Separator();
+            sep.setStyle("-fx-background-color: #2d3748; -fx-padding: 4 0;");
+
+            sidebar.getChildren().addAll(
+                    lblGestao, btnEscolas, btnTurmas, btnAlunos,
+                    sep,
+                    lblModulos, btnCronograma, btnChamada, btnRegistroHoras,
+                    spacer, btnSair);
+            ativar(btnEscolas);
         }
 
-        ativar(btnEscolas);
         return sidebar;
+    }
+
+    private Label secaoLabel(String texto) {
+        Label lbl = new Label(texto);
+        lbl.setStyle("-fx-text-fill: #4a5568; -fx-font-size: 10px; -fx-font-weight: bold; -fx-padding: 8 0 4 10;");
+        return lbl;
     }
 
     private String navStyle(boolean hover) {
         return hover
-                ? "-fx-background-color: #2d3748; -fx-text-fill: #e2e8f0; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand; -fx-alignment: CENTER-LEFT;"
-                : "-fx-background-color: transparent; -fx-text-fill: #a0aec0; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand; -fx-alignment: CENTER-LEFT;";
+                ? "-fx-background-color: #2d3748; -fx-text-fill: #e2e8f0; -fx-font-size: 13px; -fx-background-radius: 8; -fx-cursor: hand; -fx-alignment: CENTER-LEFT;"
+                : "-fx-background-color: transparent; -fx-text-fill: #a0aec0; -fx-font-size: 13px; -fx-background-radius: 8; -fx-cursor: hand; -fx-alignment: CENTER-LEFT;";
     }
 
     private String navStyleAtivo() {
-        return "-fx-background-color: #3182ce; -fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold; -fx-background-radius: 8; -fx-cursor: hand; -fx-alignment: CENTER-LEFT;";
+        return "-fx-background-color: #3182ce; -fx-text-fill: white; -fx-font-size: 13px; -fx-font-weight: bold; -fx-background-radius: 8; -fx-cursor: hand; -fx-alignment: CENTER-LEFT;";
     }
 
     private Button navBtn(String texto) {
         Button b = new Button(texto);
         b.setMaxWidth(Double.MAX_VALUE);
-        b.setPadding(new Insets(12, 14, 12, 14));
+        b.setPadding(new Insets(10, 14, 10, 14));
         b.setStyle(navStyle(false));
         b.setOnMouseEntered(e -> { if (b != btnAtivo) b.setStyle(navStyle(true)); });
         b.setOnMouseExited(e  -> { if (b != btnAtivo) b.setStyle(navStyle(false)); });
@@ -249,11 +308,14 @@ public class MainFX {
         setBreadcrumb("Escolas", escola.getNome());
     }
 
-    public EscolasView getEscolasView()         { return escolasView; }
-    public TurmasView getTurmasView()           { return turmasView; }
-    public ProfessoresView getProfessoresView() { return professoresView; }
-    public AlunosView getAlunosView()           { return alunosView; }
-    public Stage getStage()                     { return stage; }
+    public EscolasView       getEscolasView()       { return escolasView; }
+    public TurmasView        getTurmasView()         { return turmasView; }
+    public ProfessoresView   getProfessoresView()    { return professoresView; }
+    public AlunosView        getAlunosView()         { return alunosView; }
+    public CronogramaView    getCronogramaView()     { return cronogramaView; }
+    public ChamadaView       getChamadaView()        { return chamadaView; }
+    public RegistroHorasView getRegistroHorasView()  { return registroHorasView; }
+    public Stage             getStage()              { return stage; }
 
     private void sair() {
         try { new LoginFX().start(stage); } catch (Exception ignored) {}

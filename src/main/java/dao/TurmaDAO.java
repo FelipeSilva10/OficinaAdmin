@@ -39,8 +39,20 @@ public class TurmaDAO {
         } catch (SQLException e) { return false; }
     }
 
+    // PATCH: aceita null para remover o professor da turma
     public boolean definirProfessor(String turmaId, String professorId) {
         String sql = "UPDATE turmas SET professor_id = ?::uuid WHERE id = ?::uuid";
+        // Quando professorId for null, usamos a variante sem cast de uuid
+        String sqlNull = "UPDATE turmas SET professor_id = NULL WHERE id = ?::uuid";
+
+        if (professorId == null) {
+            try (Connection conn = ConexaoBD.conectar();
+                 PreparedStatement stmt = conn.prepareStatement(sqlNull)) {
+                stmt.setString(1, turmaId);
+                return stmt.executeUpdate() > 0;
+            } catch (SQLException e) { return false; }
+        }
+
         try (Connection conn = ConexaoBD.conectar();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, professorId);
@@ -49,8 +61,10 @@ public class TurmaDAO {
         } catch (SQLException e) { return false; }
     }
 
+    // PATCH: inclui t.professor_id no SELECT para que TurmasView possa pré-selecionar o professor
     private static final String BASE_SELECT =
-            "SELECT t.*, e.nome as escola_nome, p.nome as prof_nome " +
+            "SELECT t.id, t.escola_id, t.nome, t.ano_letivo, t.professor_id, " +
+                    "       e.nome as escola_nome, p.nome as prof_nome " +
                     "FROM turmas t " +
                     "JOIN escolas e ON t.escola_id = e.id " +
                     "LEFT JOIN perfis p ON t.professor_id = p.id ";
@@ -74,14 +88,17 @@ public class TurmaDAO {
             if (param != null) stmt.setString(1, param);
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
-                    turmas.add(new Turma(
+                    Turma t = new Turma(
                             rs.getString("id"),
                             rs.getString("escola_id"),
                             rs.getString("nome"),
                             rs.getString("ano_letivo"),
                             rs.getString("escola_nome"),
                             rs.getString("prof_nome")
-                    ));
+                    );
+                    // PATCH: carrega o professor_id para pré-seleção no formulário
+                    t.setProfessorId(rs.getString("professor_id"));
+                    turmas.add(t);
                 }
             }
         } catch (SQLException e) { e.printStackTrace(); }

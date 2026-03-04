@@ -1,8 +1,10 @@
 package app;
 
 import core.Escola;
+import core.Professor;
 import core.Turma;
 import dao.EscolasDAO;
+import dao.ProfessorDAO;
 import dao.TurmaDAO;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -21,6 +23,7 @@ public class TurmasView {
     private ComboBox<Escola> cbEscolasFiltro;
     private TurmaDAO turmaDAO;
     private EscolasDAO escolasDAO;
+    private ProfessorDAO professorDAO;
     private MainFX mainApp;
     private Turma turmaSelecionada;
     private final ObservableList<Turma> dados = FXCollections.observableArrayList();
@@ -29,14 +32,17 @@ public class TurmasView {
     private Label lblAcaoTurma;
     private TextField txtNome, txtAnoLetivo;
     private ComboBox<Escola> cbEscolaForm;
+    private ComboBox<Professor> cbProfessorForm;
     private Button btnSalvar;
 
     public TurmasView(MainFX mainApp) {
         this.mainApp = mainApp;
         turmaDAO = new TurmaDAO();
         escolasDAO = new EscolasDAO();
+        professorDAO = new ProfessorDAO();
         construirInterface();
-        carregarEscolas();
+        // PATCH: professor não precisa do filtro por escola (vê só as suas)
+        if (mainApp.isAdmin()) carregarEscolas();
         carregarTurmas();
     }
 
@@ -46,10 +52,13 @@ public class TurmasView {
         Label lblTitulo = new Label("Gestão de Turmas");
         lblTitulo.setStyle("-fx-font-size: 22px; -fx-font-weight: bold;");
 
+        // PATCH: filtro por escola só aparece para admin
         cbEscolasFiltro = new ComboBox<>();
         cbEscolasFiltro.setPromptText("Filtrar por escola...");
         cbEscolasFiltro.setPrefWidth(250);
         cbEscolasFiltro.setOnAction(e -> carregarTurmas());
+        cbEscolasFiltro.setVisible(mainApp.isAdmin());
+        cbEscolasFiltro.setManaged(mainApp.isAdmin());
 
         TextField txtBusca = new TextField();
         txtBusca.setPromptText("Buscar turma/professor...");
@@ -58,9 +67,12 @@ public class TurmasView {
         Button btnAtualizar = new Button("Atualizar");
         btnAtualizar.setOnAction(e -> carregarTurmas());
 
+        // PATCH: botão de nova turma apenas para admin
         Button btnNova = new Button("+ Cadastrar Turma");
         btnNova.setStyle("-fx-background-color: #28a745; -fx-text-fill: white; -fx-background-radius: 8; -fx-padding: 8 16; -fx-font-weight: bold;");
         btnNova.setOnAction(e -> abrirFormNovo());
+        btnNova.setVisible(mainApp.isAdmin());
+        btnNova.setManaged(mainApp.isAdmin());
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
@@ -106,36 +118,40 @@ public class TurmasView {
 
         tabela.setRowFactory(tv -> {
             TableRow<Turma> row = new TableRow<>();
-            ContextMenu contextMenu = new ContextMenu();
-            MenuItem deleteItem = new MenuItem("Excluir Turma");
-            deleteItem.setStyle("-fx-text-fill: red;");
 
-            deleteItem.setOnAction(event -> {
-                Turma turma = row.getItem();
-                if (turma != null) {
-                    if(turmaDAO.excluir(turma.getId())) {
-                        mainApp.mostrarAviso("Turma excluída com sucesso!", false);
-                        carregarTurmas();
-                        fecharDetalhe();
-                    } else {
-                        mainApp.mostrarAviso("Erro ao excluir. Verifique vínculos.", true);
+            // PATCH: menu de excluir apenas para admin
+            if (mainApp.isAdmin()) {
+                ContextMenu contextMenu = new ContextMenu();
+                MenuItem deleteItem = new MenuItem("Excluir Turma");
+                deleteItem.setStyle("-fx-text-fill: red;");
+                deleteItem.setOnAction(event -> {
+                    Turma turma = row.getItem();
+                    if (turma != null) {
+                        if (turmaDAO.excluir(turma.getId())) {
+                            mainApp.mostrarAviso("Turma excluída com sucesso!", false);
+                            carregarTurmas();
+                            fecharDetalhe();
+                        } else {
+                            mainApp.mostrarAviso("Erro ao excluir. Verifique vínculos.", true);
+                        }
                     }
-                }
-            });
-            contextMenu.getItems().add(deleteItem);
-
-            row.emptyProperty().addListener((obs, wasEmpty, isNowEmpty) -> row.setContextMenu(isNowEmpty ? null : contextMenu));
+                });
+                contextMenu.getItems().add(deleteItem);
+                row.emptyProperty().addListener((obs, wasEmpty, isNowEmpty) ->
+                        row.setContextMenu(isNowEmpty ? null : contextMenu));
+            }
 
             row.setOnMouseClicked(event -> {
-                if (event.getClickCount() == 2 && (!row.isEmpty())) {
+                if (event.getClickCount() == 2 && !row.isEmpty()) {
                     mainApp.abrirDashboardTurma(row.getItem());
-                } else if (event.getClickCount() == 1 && (!row.isEmpty())) {
+                } else if (event.getClickCount() == 1 && !row.isEmpty()) {
                     abrirDetalheTurma(row.getItem());
                 }
             });
             return row;
         });
 
+        // ── Painel de detalhe ──────────────────────────────────────────────────
         painelDetalhe = new VBox(14);
         painelDetalhe.setPadding(new Insets(24));
         painelDetalhe.setStyle("-fx-background-color: white; -fx-border-color: #e2e8f0; -fx-border-width: 0 0 0 1;");
@@ -150,7 +166,7 @@ public class TurmasView {
         HBox hdrD = new HBox(btnFechar);
         hdrD.setAlignment(Pos.TOP_RIGHT);
 
-        lblAcaoTurma = new Label("Nova Turma");
+        lblAcaoTurma = new Label("Detalhes da Turma");
         lblAcaoTurma.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #1a202c;");
 
         Label lblFormTitle = new Label("Dados da Turma");
@@ -158,18 +174,50 @@ public class TurmasView {
 
         txtNome = new TextField();
         txtNome.setPromptText("Ex: 1º Ano A");
+        // PATCH: professor não pode editar
+        txtNome.setEditable(mainApp.isAdmin());
 
         txtAnoLetivo = new TextField("2026");
         txtAnoLetivo.setPromptText("Ex: 2026");
+        // PATCH: professor não pode editar
+        txtAnoLetivo.setEditable(mainApp.isAdmin());
 
         cbEscolaForm = new ComboBox<>();
         cbEscolaForm.setPromptText("Selecione a escola...");
         cbEscolaForm.setMaxWidth(Double.MAX_VALUE);
+        // PATCH: professor não pode trocar a escola
+        cbEscolaForm.setDisable(!mainApp.isAdmin());
 
+        // PATCH: ComboBox para atribuir professor à turma (admin only)
+        cbProfessorForm = new ComboBox<>();
+        cbProfessorForm.setPromptText("Sem professor atribuído");
+        cbProfessorForm.setMaxWidth(Double.MAX_VALUE);
+        cbProfessorForm.setCellFactory(lv -> new ListCell<>() {
+            @Override protected void updateItem(Professor p, boolean empty) {
+                super.updateItem(p, empty);
+                setText(empty || p == null ? null : p.getNome());
+            }
+        });
+        cbProfessorForm.setButtonCell(new ListCell<>() {
+            @Override protected void updateItem(Professor p, boolean empty) {
+                super.updateItem(p, empty);
+                setText(empty || p == null ? "Sem professor atribuído" : p.getNome());
+            }
+        });
+        cbProfessorForm.setVisible(mainApp.isAdmin());
+        cbProfessorForm.setManaged(mainApp.isAdmin());
+
+        Label lblProfessor = new Label("Professor:");
+        lblProfessor.setVisible(mainApp.isAdmin());
+        lblProfessor.setManaged(mainApp.isAdmin());
+
+        // PATCH: botão salvar apenas para admin
         btnSalvar = new Button("Cadastrar Turma");
         btnSalvar.setStyle("-fx-background-color: #28a745; -fx-text-fill: white; -fx-background-radius: 8; -fx-padding: 8 16; -fx-font-weight: bold;");
         btnSalvar.setMaxWidth(Double.MAX_VALUE);
         btnSalvar.setOnAction(e -> cadastrar());
+        btnSalvar.setVisible(mainApp.isAdmin());
+        btnSalvar.setManaged(mainApp.isAdmin());
 
         painelDetalhe.getChildren().addAll(
                 hdrD, lblAcaoTurma, new Separator(),
@@ -177,6 +225,7 @@ public class TurmasView {
                 new Label("Nome:"), txtNome,
                 new Label("Ano Letivo:"), txtAnoLetivo,
                 new Label("Escola:"), cbEscolaForm,
+                lblProfessor, cbProfessorForm,
                 btnSalvar
         );
 
@@ -188,6 +237,7 @@ public class TurmasView {
     }
 
     private void abrirFormNovo() {
+        // Só admin chega aqui (botão está oculto para professor)
         tabela.getSelectionModel().clearSelection();
         turmaSelecionada = null;
         lblAcaoTurma.setText("Nova Turma");
@@ -195,8 +245,10 @@ public class TurmasView {
         txtNome.clear();
         txtAnoLetivo.setText("2026");
         cbEscolaForm.getItems().setAll(escolasDAO.listarTodas());
+        cbProfessorForm.getItems().setAll(professorDAO.listarTodos());
+        cbProfessorForm.getSelectionModel().clearSelection();
 
-        if(cbEscolasFiltro.getValue() != null) {
+        if (cbEscolasFiltro.getValue() != null) {
             cbEscolaForm.setValue(cbEscolasFiltro.getValue());
         } else {
             cbEscolaForm.getSelectionModel().clearSelection();
@@ -207,8 +259,10 @@ public class TurmasView {
 
     private void abrirDetalheTurma(Turma turma) {
         turmaSelecionada = turma;
-        lblAcaoTurma.setText("Editar Turma");
-        btnSalvar.setText("Salvar Alterações");
+        // PATCH: título diferente para professor (somente visualização)
+        lblAcaoTurma.setText(mainApp.isAdmin() ? "Editar Turma" : "Detalhes da Turma");
+        if (mainApp.isAdmin()) btnSalvar.setText("Salvar Alterações");
+
         txtNome.setText(turma.getNome());
         txtAnoLetivo.setText(turma.getAnoLetivo());
 
@@ -219,10 +273,26 @@ public class TurmasView {
                 break;
             }
         }
+
+        // PATCH: carrega professores e pré-seleciona o atual
+        if (mainApp.isAdmin()) {
+            cbProfessorForm.getItems().setAll(professorDAO.listarTodos());
+            cbProfessorForm.getSelectionModel().clearSelection();
+            if (turma.getProfessorId() != null) {
+                for (Professor p : cbProfessorForm.getItems()) {
+                    if (p.getId().equals(turma.getProfessorId())) {
+                        cbProfessorForm.setValue(p);
+                        break;
+                    }
+                }
+            }
+        }
+
         mostrarDetalhe();
     }
 
     private void cadastrar() {
+        // Só admin chega aqui (botão está oculto para professor)
         String nome = txtNome.getText().trim();
         String ano = txtAnoLetivo.getText().trim();
         Escola escola = cbEscolaForm.getValue();
@@ -232,12 +302,26 @@ public class TurmasView {
             return;
         }
 
-        boolean sucesso;
+        Professor professorSelecionado = cbProfessorForm.getValue();
+        String professorId = professorSelecionado != null ? professorSelecionado.getId() : null;
 
+        boolean sucesso;
         if (turmaSelecionada == null) {
             sucesso = turmaDAO.inserir(escola.getId(), nome, ano);
+            // Se criou com sucesso e há professor selecionado, atribui
+            if (sucesso && professorId != null) {
+                // Busca o ID da turma recém-criada para vincular o professor
+                turmaDAO.listarPorEscola(escola.getId()).stream()
+                        .filter(t -> t.getNome().equals(nome) && t.getAnoLetivo().equals(ano))
+                        .findFirst()
+                        .ifPresent(t -> turmaDAO.definirProfessor(t.getId(), professorId));
+            }
         } else {
             sucesso = turmaDAO.atualizar(turmaSelecionada.getId(), escola.getId(), nome, ano);
+            // Atualiza professor independentemente (pode estar limpando ou trocando)
+            if (sucesso) {
+                turmaDAO.definirProfessor(turmaSelecionada.getId(), professorId);
+            }
         }
 
         if (sucesso) {
@@ -253,23 +337,32 @@ public class TurmasView {
     private void mostrarDetalhe() { painelDetalhe.setVisible(true); painelDetalhe.setManaged(true); }
 
     private void fecharDetalhe() {
-        painelDetalhe.setVisible(false); painelDetalhe.setManaged(false);
+        painelDetalhe.setVisible(false);
+        painelDetalhe.setManaged(false);
         tabela.getSelectionModel().clearSelection();
         turmaSelecionada = null;
     }
 
-    private void carregarEscolas() { cbEscolasFiltro.getItems().setAll(escolasDAO.listarTodas()); }
+    private void carregarEscolas() {
+        cbEscolasFiltro.getItems().setAll(escolasDAO.listarTodas());
+    }
 
     private void carregarTurmas() {
-        Escola selecionada = cbEscolasFiltro.getValue();
-        if (selecionada == null) {
-            dados.setAll(turmaDAO.listarTodas());
+        // PATCH: professor vê apenas suas turmas; admin vê tudo (com filtro opcional por escola)
+        if (mainApp.isAdmin()) {
+            Escola selecionada = cbEscolasFiltro.getValue();
+            if (selecionada == null) {
+                dados.setAll(turmaDAO.listarTodas());
+            } else {
+                dados.setAll(turmaDAO.listarPorEscola(selecionada.getId()));
+            }
         } else {
-            dados.setAll(turmaDAO.listarPorEscola(selecionada.getId()));
+            dados.setAll(turmaDAO.listarPorProfessor(mainApp.getSessao().getId()));
         }
     }
 
     public void selecionarEscola(Escola escolaAlvo) {
+        if (!mainApp.isAdmin()) return; // professor não usa filtro por escola
         for (Escola e : cbEscolasFiltro.getItems()) {
             if (e.getId().equals(escolaAlvo.getId())) {
                 cbEscolasFiltro.getSelectionModel().select(e);

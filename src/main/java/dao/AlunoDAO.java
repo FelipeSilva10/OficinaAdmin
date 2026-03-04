@@ -11,7 +11,6 @@ import java.util.List;
 public class AlunoDAO {
 
     public boolean inserir(String authId, String nome, String email, String senha, String turmaId) {
-        // Usa ON CONFLICT para resolver problemas com Triggers do Supabase
         String sql = "INSERT INTO perfis (id, nome, email, senha, role, turma_id) VALUES (?::uuid, ?, ?, ?, 'student', ?::uuid) " +
                 "ON CONFLICT (id) DO UPDATE SET nome = EXCLUDED.nome, email = EXCLUDED.email, senha = EXCLUDED.senha, role = EXCLUDED.role, turma_id = EXCLUDED.turma_id";
         try (Connection conn = ConexaoBD.conectar();
@@ -54,7 +53,7 @@ public class AlunoDAO {
         try (Connection conn = ConexaoBD.conectar();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, id);
-            stmt.executeUpdate(); // Não importa se retornar 0 (já deletado por cascade no supabase)
+            stmt.executeUpdate();
             return true;
         } catch (SQLException e) {
             System.err.println("Erro ao excluir aluno da tabela: " + e.getMessage());
@@ -72,6 +71,20 @@ public class AlunoDAO {
                         "LEFT JOIN escolas e ON t.escola_id = e.id " +
                         "WHERE p.role = 'student' ORDER BY p.nome ASC",
                 null);
+    }
+
+    // PATCH: retorna apenas alunos das turmas em que o professor é regente
+    public List<Aluno> listarPorProfessor(String professorId) {
+        return buscar(
+                "SELECT p.id, p.nome, p.email, p.senha, p.turma_id, " +
+                        "COALESCE(t.nome, 'Sem Turma') as turma_nome, " +
+                        "COALESCE(e.nome, 'Sem Escola') as escola_nome " +
+                        "FROM perfis p " +
+                        "JOIN turmas t ON p.turma_id = t.id " +
+                        "LEFT JOIN escolas e ON t.escola_id = e.id " +
+                        "WHERE p.role = 'student' AND t.professor_id = ?::uuid " +
+                        "ORDER BY p.nome ASC",
+                professorId);
     }
 
     public List<Aluno> listarPorTurma(String turmaId) {

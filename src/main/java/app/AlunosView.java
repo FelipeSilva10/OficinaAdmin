@@ -54,6 +54,12 @@ public class AlunosView {
         Label lblTitulo = new Label("Alunos");
         lblTitulo.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #1a202c;");
 
+        // PATCH: subtítulo de escopo para professor
+        Label lblEscopo = new Label("Exibindo apenas alunos das suas turmas");
+        lblEscopo.setStyle("-fx-text-fill: #718096; -fx-font-size: 12px;");
+        lblEscopo.setVisible(!mainApp.isAdmin());
+        lblEscopo.setManaged(!mainApp.isAdmin());
+
         TextField txtBusca = new TextField();
         txtBusca.setPromptText("Buscar aluno/escola/turma...");
         txtBusca.setPrefWidth(260);
@@ -61,14 +67,18 @@ public class AlunosView {
         Button btnAtualizar = new Button("Atualizar");
         btnAtualizar.setOnAction(e -> carregarDados());
 
+        // PATCH: cadastrar aluno apenas para admin
         Button btnNovo = new Button("+ Cadastrar Aluno");
         btnNovo.setStyle("-fx-background-color: #3182ce; -fx-text-fill: white; -fx-background-radius: 8; -fx-padding: 8 16; -fx-font-weight: bold;");
         btnNovo.setOnAction(e -> abrirFormNovo());
+        btnNovo.setVisible(mainApp.isAdmin());
+        btnNovo.setManaged(mainApp.isAdmin());
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        HBox header = new HBox(12, lblTitulo, spacer, txtBusca, btnAtualizar, btnNovo);
+        VBox tituloBox = new VBox(2, lblTitulo, lblEscopo);
+        HBox header = new HBox(12, tituloBox, spacer, txtBusca, btnAtualizar, btnNovo);
         header.setAlignment(Pos.CENTER_LEFT);
         header.setPadding(new Insets(20, 20, 16, 20));
 
@@ -85,6 +95,8 @@ public class AlunosView {
 
         TableColumn<Aluno, String> colSenha = new TableColumn<>("Senha");
         colSenha.setCellValueFactory(new PropertyValueFactory<>("senha"));
+        // PATCH: professor não vê senha
+        colSenha.setVisible(mainApp.isAdmin());
 
         TableColumn<Aluno, String> colEscola = new TableColumn<>("Escola");
         colEscola.setCellValueFactory(new PropertyValueFactory<>("escolaNome"));
@@ -125,27 +137,32 @@ public class AlunosView {
 
         tabela.setRowFactory(tv -> {
             TableRow<Aluno> row = new TableRow<>();
-            ContextMenu cm = new ContextMenu();
-            MenuItem miDel = new MenuItem("Excluir Aluno");
-            miDel.setStyle("-fx-text-fill: red;");
 
-            miDel.setOnAction(e -> {
-                Aluno a = row.getItem();
-                if (a != null) {
-                    if(alunoDAO.excluir(a.getId())) {
-                        mainApp.mostrarAviso("Aluno removido com sucesso!", false);
-                        carregarDados();
-                        fecharDetalhe();
-                    } else {
-                        mainApp.mostrarAviso("Erro ao excluir aluno.", true);
+            // PATCH: menu de excluir apenas para admin
+            if (mainApp.isAdmin()) {
+                ContextMenu cm = new ContextMenu();
+                MenuItem miDel = new MenuItem("Excluir Aluno");
+                miDel.setStyle("-fx-text-fill: red;");
+                miDel.setOnAction(e -> {
+                    Aluno a = row.getItem();
+                    if (a != null) {
+                        if (alunoDAO.excluir(a.getId())) {
+                            mainApp.mostrarAviso("Aluno removido com sucesso!", false);
+                            carregarDados();
+                            fecharDetalhe();
+                        } else {
+                            mainApp.mostrarAviso("Erro ao excluir aluno.", true);
+                        }
                     }
-                }
-            });
-            cm.getItems().add(miDel);
-            row.emptyProperty().addListener((obs, w, n) -> row.setContextMenu(n ? null : cm));
+                });
+                cm.getItems().add(miDel);
+                row.emptyProperty().addListener((obs, w, n) -> row.setContextMenu(n ? null : cm));
+            }
+
             return row;
         });
 
+        // ── Painel de detalhe ──────────────────────────────────────────────────
         painelDetalhe = new VBox(14);
         painelDetalhe.setPadding(new Insets(24));
         painelDetalhe.setStyle("-fx-background-color: white; -fx-border-color: #e2e8f0; -fx-border-width: 0 0 0 1;");
@@ -172,13 +189,33 @@ public class AlunosView {
         Label lblFormTitle = new Label("Dados de Acesso e Matrícula");
         lblFormTitle.setStyle("-fx-font-weight: bold; -fx-text-fill: #2d3748;");
 
-        txtNome = new TextField(); txtNome.setPromptText("Nome completo");
-        txtEmail = new TextField(); txtEmail.setPromptText("E-mail");
-        txtSenha = new PasswordField(); txtSenha.setPromptText("Senha (mín. 6 caracteres)");
+        txtNome = new TextField();
+        txtNome.setPromptText("Nome completo");
+        // PATCH: professor não edita
+        txtNome.setEditable(mainApp.isAdmin());
+
+        txtEmail = new TextField();
+        txtEmail.setPromptText("E-mail");
+        // E-mail começa não editável; abrirFormNovo() habilita para novos cadastros.
+        // Na edição permanece bloqueado (e-mail não pode ser alterado).
+        txtEmail.setEditable(false);
+
+        txtSenha = new PasswordField();
+        txtSenha.setPromptText("Senha (mín. 6 caracteres)");
+        // PATCH: professor não vê/edita senha
+        txtSenha.setEditable(mainApp.isAdmin());
+        txtSenha.setVisible(mainApp.isAdmin());
+        txtSenha.setManaged(mainApp.isAdmin());
+
+        // Label de senha também oculta para professor
+        Label lblSenha = new Label("Senha:");
+        lblSenha.setVisible(mainApp.isAdmin());
+        lblSenha.setManaged(mainApp.isAdmin());
 
         cbEscola = new ComboBox<>();
         cbEscola.setPromptText("1º Selecione a escola...");
         cbEscola.setMaxWidth(Double.MAX_VALUE);
+        cbEscola.setDisable(!mainApp.isAdmin()); // PATCH
         cbEscola.setCellFactory(lv -> new ListCell<>() {
             @Override protected void updateItem(Escola e, boolean empty) {
                 super.updateItem(e, empty);
@@ -192,6 +229,7 @@ public class AlunosView {
             }
         });
         cbEscola.setOnAction(e -> {
+            if (!mainApp.isAdmin()) return;
             Escola esc = cbEscola.getValue();
             if (esc != null) {
                 cbTurma.getItems().setAll(turmaDAO.listarPorEscola(esc.getId()));
@@ -216,10 +254,13 @@ public class AlunosView {
             }
         });
 
+        // PATCH: botão salvar apenas para admin
         btnSalvar = new Button("Cadastrar Aluno");
         btnSalvar.setStyle("-fx-background-color: #3182ce; -fx-text-fill: white; -fx-background-radius: 8; -fx-padding: 8 16; -fx-font-weight: bold;");
         btnSalvar.setMaxWidth(Double.MAX_VALUE);
         btnSalvar.setOnAction(e -> cadastrar());
+        btnSalvar.setVisible(mainApp.isAdmin());
+        btnSalvar.setManaged(mainApp.isAdmin());
 
         btnVerTurma = new Button("Ir para Turma");
         btnVerTurma.setStyle("-fx-background-color: #e2e8f0; -fx-text-fill: #2d3748; -fx-background-radius: 8; -fx-padding: 8 16;");
@@ -232,7 +273,7 @@ public class AlunosView {
                 lblFormTitle,
                 new Label("Nome:"), txtNome,
                 new Label("E-mail:"), txtEmail,
-                new Label("Senha:"), txtSenha,
+                lblSenha, txtSenha,
                 new Label("Escola:"), cbEscola,
                 new Label("Turma:"), cbTurma,
                 btnSalvar,
@@ -248,11 +289,13 @@ public class AlunosView {
     }
 
     private void abrirFormNovo() {
+        // Só admin chega aqui (botão está oculto para professor)
         tabela.getSelectionModel().clearSelection();
         alunoSelecionado = null;
         lblNomeAluno.setText("Novo Aluno");
         btnSalvar.setText("Cadastrar Aluno");
         txtNome.clear(); txtEmail.clear(); txtSenha.clear();
+        txtEmail.setEditable(true);   // novo cadastro: e-mail deve ser digitado
         txtEmail.setDisable(false);
         cbEscola.getItems().setAll(escolasDAO.listarTodas());
         cbTurma.getItems().clear(); cbTurma.setDisable(true);
@@ -261,43 +304,41 @@ public class AlunosView {
 
     private void abrirDetalheAluno(Aluno aluno) {
         alunoSelecionado = aluno;
-        lblNomeAluno.setText("Editar: " + aluno.getNome());
-        btnSalvar.setText("Salvar Alterações");
+        // PATCH: título diferente para professor (somente visualização)
+        lblNomeAluno.setText(mainApp.isAdmin() ? "Editar: " + aluno.getNome() : aluno.getNome());
+        if (mainApp.isAdmin()) btnSalvar.setText("Salvar Alterações");
 
         lblDetalheInfo.setText("Matrícula Atual:\nEscola: " + aluno.getEscolaNome() + "\nTurma: " + aluno.getTurmaNome());
 
         txtNome.setText(aluno.getNome());
         txtEmail.setText(aluno.getEmail());
-        txtSenha.setText(aluno.getSenha());
+        txtEmail.setEditable(false);  // na edição o e-mail nunca pode ser alterado
         txtEmail.setDisable(true);
+        if (mainApp.isAdmin()) txtSenha.setText(aluno.getSenha());
 
         cbEscola.getItems().setAll(escolasDAO.listarTodas());
         Escola escolaMatch = null;
         for (Escola e : cbEscola.getItems()) {
-            if (e.getNome().equals(aluno.getEscolaNome())) {
-                escolaMatch = e;
-                break;
-            }
+            if (e.getNome().equals(aluno.getEscolaNome())) { escolaMatch = e; break; }
         }
 
         if (escolaMatch != null) {
             cbEscola.setValue(escolaMatch);
             cbTurma.getItems().setAll(turmaDAO.listarPorEscola(escolaMatch.getId()));
-            cbTurma.setDisable(false);
+            cbTurma.setDisable(!mainApp.isAdmin());
             for (Turma t : cbTurma.getItems()) {
-                if (t.getId().equals(aluno.getTurmaId())) {
-                    cbTurma.setValue(t);
-                    break;
-                }
+                if (t.getId().equals(aluno.getTurmaId())) { cbTurma.setValue(t); break; }
             }
         } else {
-            cbTurma.getItems().clear(); cbTurma.setDisable(true);
+            cbTurma.getItems().clear();
+            cbTurma.setDisable(true);
         }
 
         mostrarDetalhe();
     }
 
     private void cadastrar() {
+        // Só admin chega aqui (botão está oculto para professor)
         String nome = txtNome.getText().trim();
         String email = txtEmail.getText().trim();
         String senha = txtSenha.getText();
@@ -308,7 +349,6 @@ public class AlunosView {
             return;
         }
 
-        // Novo Aluno
         if (alunoSelecionado == null) {
             String novoId = SupabaseAuthDAO.criarUsuarioAuth(email, senha);
             if (novoId != null) {
@@ -317,16 +357,13 @@ public class AlunosView {
                     txtNome.clear(); txtEmail.clear(); txtSenha.clear();
                     carregarDados(); fecharDetalhe();
                 } else {
-                    // ROLLBACK: Deleta do Auth se o banco falhou
                     SupabaseAuthDAO.deletarUsuarioAuth(novoId);
                     mainApp.mostrarAviso("Erro de banco de dados. Tente novamente.", true);
                 }
             } else {
                 mainApp.mostrarAviso("E-mail já cadastrado no sistema!", true);
             }
-        }
-        // Atualizar Aluno Existente
-        else {
+        } else {
             if (alunoDAO.atualizar(alunoSelecionado.getId(), nome, email, senha, turma.getId())) {
                 mainApp.mostrarAviso("Aluno atualizado com sucesso!", false);
                 txtNome.clear(); txtEmail.clear(); txtSenha.clear();
@@ -340,12 +377,20 @@ public class AlunosView {
     private void mostrarDetalhe() { painelDetalhe.setVisible(true); painelDetalhe.setManaged(true); }
 
     private void fecharDetalhe() {
-        painelDetalhe.setVisible(false); painelDetalhe.setManaged(false);
+        painelDetalhe.setVisible(false);
+        painelDetalhe.setManaged(false);
         tabela.getSelectionModel().clearSelection();
         alunoSelecionado = null;
     }
 
-    private void carregarDados() { dados.setAll(alunoDAO.listarTodos()); }
+    private void carregarDados() {
+        // PATCH: professor vê apenas alunos das suas turmas
+        if (mainApp.isAdmin()) {
+            dados.setAll(alunoDAO.listarTodos());
+        } else {
+            dados.setAll(alunoDAO.listarPorProfessor(mainApp.getSessao().getId()));
+        }
+    }
 
     public BorderPane getView() { return view; }
 }

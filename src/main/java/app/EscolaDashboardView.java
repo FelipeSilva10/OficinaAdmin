@@ -56,29 +56,34 @@ public class EscolaDashboardView {
     }
 
     private VBox criarPainelEsquerdo() {
-        // Campo Inline para criação de turma (Sem Pop-ups)
-        HBox boxNovaTurma = new HBox(10);
-        boxNovaTurma.setAlignment(Pos.CENTER_LEFT);
-        TextField txtNova = new TextField();
-        txtNova.setPromptText("Nome da nova turma...");
-        Button btnAdd = new Button("Adicionar Turma");
-        btnAdd.setStyle("-fx-background-color: #28a745; -fx-text-fill: white; -fx-font-weight: bold;");
+        VBox box = new VBox(15);
+        box.setPadding(new Insets(10));
 
-        btnAdd.setOnAction(e -> {
-            String nome = txtNova.getText().trim();
-            if(nome.isEmpty()){
-                mainApp.mostrarAviso("Digite o nome da turma!", true);
-                return;
-            }
-            if(turmaDAO.inserir(escola.getId(), nome, "2026")) {
-                mainApp.mostrarAviso("Turma criada com sucesso!", false);
-                txtNova.clear();
-                carregarDados();
-            } else {
-                mainApp.mostrarAviso("Erro ao criar turma.", true);
-            }
-        });
-        boxNovaTurma.getChildren().addAll(txtNova, btnAdd);
+        // PATCH: campo de nova turma apenas para admin
+        if (mainApp.isAdmin()) {
+            HBox boxNovaTurma = new HBox(10);
+            boxNovaTurma.setAlignment(Pos.CENTER_LEFT);
+            TextField txtNova = new TextField();
+            txtNova.setPromptText("Nome da nova turma...");
+            Button btnAdd = new Button("Adicionar Turma");
+            btnAdd.setStyle("-fx-background-color: #28a745; -fx-text-fill: white; -fx-font-weight: bold;");
+            btnAdd.setOnAction(e -> {
+                String nome = txtNova.getText().trim();
+                if (nome.isEmpty()) {
+                    mainApp.mostrarAviso("Digite o nome da turma!", true);
+                    return;
+                }
+                if (turmaDAO.inserir(escola.getId(), nome, "2026")) {
+                    mainApp.mostrarAviso("Turma criada com sucesso!", false);
+                    txtNova.clear();
+                    carregarDados();
+                } else {
+                    mainApp.mostrarAviso("Erro ao criar turma.", true);
+                }
+            });
+            boxNovaTurma.getChildren().addAll(txtNova, btnAdd);
+            box.getChildren().add(boxNovaTurma);
+        }
 
         tabelaTurmas = new TableView<>();
         tabelaTurmas.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
@@ -97,44 +102,57 @@ public class EscolaDashboardView {
 
         tabelaTurmas.setRowFactory(tv -> {
             TableRow<Turma> row = new TableRow<>();
-            ContextMenu cm = new ContextMenu();
-            MenuItem mi = new MenuItem("Excluir Turma");
-            mi.setStyle("-fx-text-fill: red;");
-            mi.setOnAction(evt -> {
-                Turma t = row.getItem();
-                if(t != null) {
-                    if (turmaDAO.excluir(t.getId())) {
-                        mainApp.mostrarAviso("Turma excluída!", false);
-                        carregarDados();
-                    } else {
-                        mainApp.mostrarAviso("Erro ao excluir turma.", true);
+
+            // PATCH: excluir turma apenas para admin
+            if (mainApp.isAdmin()) {
+                ContextMenu cm = new ContextMenu();
+                MenuItem mi = new MenuItem("Excluir Turma");
+                mi.setStyle("-fx-text-fill: red;");
+                mi.setOnAction(evt -> {
+                    Turma t = row.getItem();
+                    if (t != null) {
+                        if (turmaDAO.excluir(t.getId())) {
+                            mainApp.mostrarAviso("Turma excluída!", false);
+                            carregarDados();
+                        } else {
+                            mainApp.mostrarAviso("Erro ao excluir turma.", true);
+                        }
                     }
-                }
-            });
-            cm.getItems().add(mi);
-            row.emptyProperty().addListener((obs, wasEmpty, isNowEmpty) -> {
-                row.setContextMenu(isNowEmpty ? null : cm);
-            });
+                });
+                cm.getItems().add(mi);
+                row.emptyProperty().addListener((obs, wasEmpty, isNowEmpty) ->
+                        row.setContextMenu(isNowEmpty ? null : cm));
+            }
 
             row.setOnMouseClicked(event -> {
-                if (event.getClickCount() == 2 && (!row.isEmpty())) {
+                if (event.getClickCount() == 2 && !row.isEmpty()) {
                     mainApp.abrirDashboardTurma(row.getItem());
                 }
             });
 
+            // PATCH: painel de gerência (atribuir professor) apenas para admin
+            if (mainApp.isAdmin()) {
+                tabelaTurmas.getSelectionModel().selectedItemProperty().addListener((obs, oldSel, newSel) -> {
+                    if (newSel != null) atualizarPainelDireito(newSel);
+                });
+            }
+
             return row;
         });
 
-        tabelaTurmas.getSelectionModel().selectedItemProperty().addListener((obs, oldSel, newSel) -> {
-            if (newSel != null) atualizarPainelDireito(newSel);
-        });
-
-        VBox box = new VBox(15, new Label("📚 Turmas da Escola"), boxNovaTurma, tabelaTurmas);
-        box.setPadding(new Insets(10));
+        box.getChildren().addAll(new Label("📚 Turmas da Escola"), tabelaTurmas);
+        VBox.setVgrow(tabelaTurmas, Priority.ALWAYS);
         return box;
     }
 
     private VBox criarPainelDireito() {
+        // PATCH: painel de gerência apenas para admin
+        if (!mainApp.isAdmin()) {
+            VBox aviso = new VBox(new Label("Selecione uma turma para ver os detalhes."));
+            aviso.setPadding(new Insets(10));
+            return aviso;
+        }
+
         painelGerenciar = new VBox(15);
         painelGerenciar.setPadding(new Insets(20));
         painelGerenciar.setStyle("-fx-background-color: #f6f8fa; -fx-border-color: #e1e4e8; -fx-border-radius: 8px;");
@@ -162,6 +180,7 @@ public class EscolaDashboardView {
     }
 
     private void atualizarPainelDireito(Turma turma) {
+        if (!mainApp.isAdmin() || painelGerenciar == null) return;
         lblTurmaNome.setText("Turma: " + turma.getNome() + " (" + turma.getAnoLetivo() + ")");
         cbProfessoresGlobais.getItems().setAll(professorDAO.listarTodos());
         painelGerenciar.setVisible(true);

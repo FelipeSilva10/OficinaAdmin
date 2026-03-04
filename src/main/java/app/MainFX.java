@@ -11,11 +11,8 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
-import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Duration;
-
-import java.util.Optional;
 
 public class MainFX {
 
@@ -24,7 +21,7 @@ public class MainFX {
     private VBox toastContainer;
     private Stage stage;
 
-    private UsuarioSessao sessaoAtual; // Guarda quem está logado!
+    private UsuarioSessao sessaoAtual;
 
     private EscolasView escolasView;
     private TurmasView turmasView;
@@ -34,9 +31,13 @@ public class MainFX {
     private Button btnAtivo;
     private Label breadcrumb;
 
-    // Novo getter para as Views verificarem se é admin
     public boolean isAdmin() {
         return sessaoAtual != null && "ADMIN".equals(sessaoAtual.getRole());
+    }
+
+    // PATCH: expõe a sessão para as Views filtrarem por professor
+    public UsuarioSessao getSessao() {
+        return sessaoAtual;
     }
 
     public void iniciarComLoading(Stage stage, UsuarioSessao sessao) {
@@ -69,10 +70,24 @@ public class MainFX {
 
         Task<Void> taskCarregar = new Task<>() {
             @Override protected Void call() throws Exception {
-                updateMessage("Carregando escolas..."); Platform.runLater(() -> escolasView = new EscolasView(MainFX.this)); Thread.sleep(100);
-                updateMessage("Carregando turmas...");  Platform.runLater(() -> turmasView = new TurmasView(MainFX.this)); Thread.sleep(100);
-                if(isAdmin()) { updateMessage("Carregando professores..."); Platform.runLater(() -> professoresView = new ProfessoresView(MainFX.this)); Thread.sleep(100); }
-                updateMessage("Carregando alunos...");  Platform.runLater(() -> alunosView = new AlunosView(MainFX.this)); Thread.sleep(200);
+                updateMessage("Carregando escolas...");
+                Platform.runLater(() -> escolasView = new EscolasView(MainFX.this));
+                Thread.sleep(100);
+
+                updateMessage("Carregando turmas...");
+                Platform.runLater(() -> turmasView = new TurmasView(MainFX.this));
+                Thread.sleep(100);
+
+                // Professores: apenas admin carrega esta view
+                if (isAdmin()) {
+                    updateMessage("Carregando professores...");
+                    Platform.runLater(() -> professoresView = new ProfessoresView(MainFX.this));
+                    Thread.sleep(100);
+                }
+
+                updateMessage("Carregando alunos...");
+                Platform.runLater(() -> alunosView = new AlunosView(MainFX.this));
+                Thread.sleep(200);
                 return null;
             }
         };
@@ -118,7 +133,6 @@ public class MainFX {
         Label lblNome = new Label("Oficina Admin");
         lblNome.setStyle("-fx-font-size: 17px; -fx-font-weight: bold; -fx-text-fill: #1a202c;");
 
-        // Identificador visual de quem está logado
         Label lblUser = new Label((isAdmin() ? "👑 Admin: " : "🎓 Prof: ") + sessaoAtual.getNome());
         lblUser.setStyle("-fx-font-size: 13px; -fx-text-fill: #718096; -fx-background-color: #edf2f7; -fx-padding: 4 10; -fx-background-radius: 6;");
 
@@ -128,14 +142,13 @@ public class MainFX {
         breadcrumb = new Label("Escolas");
         breadcrumb.setStyle("-fx-text-fill: #718096; -fx-font-size: 14px;");
 
-        HBox header = new HBox(20, lblNome, lblUser, spacer, breadcrumb); // Inserido lblUser aqui
+        HBox header = new HBox(20, lblNome, lblUser, spacer, breadcrumb);
         header.setPadding(new Insets(16, 24, 16, 24));
         header.setAlignment(Pos.CENTER_LEFT);
         header.setStyle("-fx-background-color: white; -fx-border-color: #e2e8f0; -fx-border-width: 0 0 1 0; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.04), 4, 0, 0, 2);");
         return header;
     }
 
-    // (Mantenha o método setBreadcrumb inalterado aqui)
     public void setBreadcrumb(String... partes) {
         if (breadcrumb == null) return;
         StringBuilder sb = new StringBuilder();
@@ -178,11 +191,10 @@ public class MainFX {
         btnAlunos.setOnAction(e -> { ativar(btnAlunos); root.setCenter(alunosView.getView()); setBreadcrumb("Alunos"); });
         btnSair.setOnAction(e -> sair());
 
-        // LÓGICA DE PERMISSÃO NA SIDEBAR
         if (isAdmin()) {
             sidebar.getChildren().addAll(lblMenu, btnEscolas, btnTurmas, btnProfessores, btnAlunos, spacer, btnSair);
         } else {
-            // Se for professor, esconde o botão de gestão de professores
+            // PATCH: Professor não vê gestão de professores
             sidebar.getChildren().addAll(lblMenu, btnEscolas, btnTurmas, btnAlunos, spacer, btnSair);
         }
 
@@ -241,7 +253,7 @@ public class MainFX {
     public TurmasView getTurmasView()           { return turmasView; }
     public ProfessoresView getProfessoresView() { return professoresView; }
     public AlunosView getAlunosView()           { return alunosView; }
-    public Stage getStage() { return stage; }
+    public Stage getStage()                     { return stage; }
 
     private void sair() {
         try { new LoginFX().start(stage); } catch (Exception ignored) {}

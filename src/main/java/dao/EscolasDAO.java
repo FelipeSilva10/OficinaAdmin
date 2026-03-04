@@ -66,4 +66,30 @@ public class EscolasDAO {
         }
         return lista;
     }
+
+    // PATCH: retorna apenas as escolas que têm turmas onde o professor é regente
+    public List<Escola> listarPorProfessor(String professorId) {
+        List<Escola> lista = new ArrayList<>();
+        String sql = "SELECT DISTINCT e.id, e.nome, e.status " +
+                "FROM escolas e " +
+                "JOIN turmas t ON t.escola_id = e.id " +
+                "WHERE t.professor_id = ?::uuid " +
+                "ORDER BY e.nome ASC";
+        try (Connection conn = ConexaoBD.conectar();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, professorId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    lista.add(new Escola(
+                            rs.getString("id"),
+                            rs.getString("nome"),
+                            rs.getString("status")
+                    ));
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Erro ao listar escolas por professor: " + e.getMessage());
+        }
+        return lista;
+    }
 }

@@ -86,7 +86,7 @@ public class EscolaDashboardView {
         }
 
         tabelaTurmas = new TableView<>();
-        tabelaTurmas.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        tabelaTurmas.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
 
         TableColumn<Turma, String> colNome = new TableColumn<>("Turma");
         colNome.setCellValueFactory(new PropertyValueFactory<>("nome"));

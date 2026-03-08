@@ -68,7 +68,7 @@ public class EscolasView {
         header.setPadding(new Insets(20, 20, 16, 20));
 
         tabela = new TableView<>();
-        tabela.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        tabela.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         tabela.setPlaceholder(new Label("Nenhuma escola encontrada."));
         VBox.setVgrow(tabela, Priority.ALWAYS);
 

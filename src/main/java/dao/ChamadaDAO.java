@@ -3,6 +3,7 @@ package dao;
 import core.Chamada;
 import core.ChamadaPresenca;
 import core.RegistroHoras;
+import core.ResumoTurma;
 
 import java.sql.*;
 import java.time.LocalDate;
@@ -11,13 +12,10 @@ import java.util.List;
 
 public class ChamadaDAO {
 
-    // ── CHAMADAS ───────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────────
+    // CHAMADAS
+    // ─────────────────────────────────────────────────────────────────────────
 
-    /**
-     * Abre uma nova chamada e grava a presença de cada aluno.
-     * Retorna o ID da chamada criada, ou null em caso de erro.
-     * Usa transação para garantir atomicidade entre as duas tabelas.
-     */
     public String abrirChamada(String professorId, String turmaId,
                                String cronogramaId, LocalDate dataAula,
                                String horarioInicio, String horarioFim,
@@ -33,11 +31,9 @@ public class ChamadaDAO {
             VALUES (?::uuid, ?::uuid, ?)
             ON CONFLICT (chamada_id, aluno_id) DO UPDATE SET presente = EXCLUDED.presente
             """;
-
         try (Connection conn = ConexaoBD.conectar()) {
             conn.setAutoCommit(false);
             try {
-                // 1. Insere a chamada
                 String chamadaId;
                 try (PreparedStatement stmt = conn.prepareStatement(sqlChamada)) {
                     stmt.setString(1, professorId);
@@ -48,12 +44,10 @@ public class ChamadaDAO {
                     stmt.setString(5, horarioInicio);
                     stmt.setString(6, horarioFim);
                     try (ResultSet rs = stmt.executeQuery()) {
-                        if (!rs.next()) throw new SQLException("Chamada não foi inserida.");
+                        if (!rs.next()) throw new SQLException("Chamada não inserida.");
                         chamadaId = rs.getString("id");
                     }
                 }
-
-                // 2. Insere as presenças
                 try (PreparedStatement stmt = conn.prepareStatement(sqlPresenca)) {
                     for (ChamadaPresenca p : presencas) {
                         stmt.setString(1, chamadaId);
@@ -63,22 +57,46 @@ public class ChamadaDAO {
                     }
                     stmt.executeBatch();
                 }
-
                 conn.commit();
                 return chamadaId;
-
             } catch (SQLException e) {
                 conn.rollback();
                 System.err.println("Erro ao abrir chamada (rollback): " + e.getMessage());
                 return null;
             }
         } catch (SQLException e) {
-            System.err.println("Erro de conexão ao abrir chamada: " + e.getMessage());
+            System.err.println("Erro de conexão: " + e.getMessage());
             return null;
         }
     }
 
-    /** Verifica se já existe chamada para professor+turma+data. */
+    public boolean excluirChamada(String chamadaId) {
+        // Deleta presenças e chamada em transação
+        String sqlPres = "DELETE FROM chamada_presencas WHERE chamada_id = ?::uuid";
+        String sqlCham = "DELETE FROM chamadas WHERE id = ?::uuid";
+        try (Connection conn = ConexaoBD.conectar()) {
+            conn.setAutoCommit(false);
+            try {
+                try (PreparedStatement s = conn.prepareStatement(sqlPres)) {
+                    s.setString(1, chamadaId); s.executeUpdate();
+                }
+                try (PreparedStatement s = conn.prepareStatement(sqlCham)) {
+                    s.setString(1, chamadaId);
+                    int rows = s.executeUpdate();
+                    conn.commit();
+                    return rows > 0;
+                }
+            } catch (SQLException e) {
+                conn.rollback();
+                System.err.println("Erro ao excluir chamada: " + e.getMessage());
+                return false;
+            }
+        } catch (SQLException e) {
+            System.err.println("Erro de conexão: " + e.getMessage());
+            return false;
+        }
+    }
+
     public boolean chamadaJaExiste(String professorId, String turmaId, LocalDate data) {
         String sql = """
             SELECT 1 FROM chamadas
@@ -93,15 +111,14 @@ public class ChamadaDAO {
         } catch (SQLException e) { return false; }
     }
 
-    /** Lista todas as chamadas do professor, ordenadas por data decrescente. */
     public List<Chamada> listarPorProfessor(String professorId) {
         String sql = """
             SELECT c.id, c.professor_id, c.turma_id, t.nome as turma_nome,
                    c.cronograma_id, c.data_aula,
                    TO_CHAR(c.horario_inicio, 'HH24:MI') as horario_inicio,
                    TO_CHAR(c.horario_fim,    'HH24:MI') as horario_fim,
-                   COUNT(cp.id)                                         as total_alunos,
-                   COUNT(cp.id) FILTER (WHERE cp.presente = true)       as total_presentes
+                   COUNT(cp.id) as total_alunos,
+                   COUNT(cp.id) FILTER (WHERE cp.presente) as total_presentes
             FROM chamadas c
             JOIN turmas t ON t.id = c.turma_id
             LEFT JOIN chamada_presencas cp ON cp.chamada_id = c.id
@@ -109,12 +126,23 @@ public class ChamadaDAO {
             GROUP BY c.id, t.nome
             ORDER BY c.data_aula DESC, c.horario_inicio
             """;
-        return buscarChamadas(sql, professorId, null, null);
+        List<Chamada> lista = new ArrayList<>();
+        try (Connection conn = ConexaoBD.conectar();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, professorId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) lista.add(mapearChamada(rs));
+            }
+        } catch (SQLException e) {
+            System.err.println("Erro ao listar chamadas: " + e.getMessage());
+        }
+        return lista;
     }
 
-    // ── PRESENÇAS ──────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────────
+    // PRESENÇAS
+    // ─────────────────────────────────────────────────────────────────────────
 
-    /** Carrega a lista de presença de uma chamada específica. */
     public List<ChamadaPresenca> listarPresencas(String chamadaId) {
         String sql = """
             SELECT cp.id, cp.chamada_id, cp.aluno_id, p.nome as aluno_nome, cp.presente
@@ -130,12 +158,9 @@ public class ChamadaDAO {
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
                     lista.add(new ChamadaPresenca(
-                            rs.getString("id"),
-                            rs.getString("chamada_id"),
-                            rs.getString("aluno_id"),
-                            rs.getString("aluno_nome"),
-                            rs.getBoolean("presente")
-                    ));
+                            rs.getString("id"), rs.getString("chamada_id"),
+                            rs.getString("aluno_id"), rs.getString("aluno_nome"),
+                            rs.getBoolean("presente")));
                 }
             }
         } catch (SQLException e) {
@@ -144,41 +169,115 @@ public class ChamadaDAO {
         return lista;
     }
 
-    // ── REGISTRO DE HORAS ─────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────────
+    // RESUMO POR TURMA — preview na tela de chamada
+    // ─────────────────────────────────────────────────────────────────────────
+
+    public List<ResumoTurma> resumoPorTurma(String professorId) {
+        String sql = """
+            SELECT t.id AS turma_id, t.nome AS turma_nome, e.nome AS escola_nome,
+                   COUNT(DISTINCT c.id) AS total_chamadas,
+                   MAX(c.data_aula) AS ultima_chamada,
+                   ROUND(
+                     100.0 * COUNT(cp.id) FILTER (WHERE cp.presente)::numeric
+                     / NULLIF(COUNT(cp.id), 0), 1
+                   ) AS media_presenca
+            FROM turmas t
+            JOIN escolas e ON e.id = t.escola_id
+            LEFT JOIN chamadas c ON c.turma_id = t.id AND c.professor_id = ?::uuid
+            LEFT JOIN chamada_presencas cp ON cp.chamada_id = c.id
+            WHERE t.professor_id = ?::uuid
+            GROUP BY t.id, t.nome, e.nome
+            ORDER BY t.nome
+            """;
+        List<ResumoTurma> lista = new ArrayList<>();
+        try (Connection conn = ConexaoBD.conectar();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, professorId);
+            stmt.setString(2, professorId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    Date ultData = rs.getDate("ultima_chamada");
+                    lista.add(new ResumoTurma(
+                            rs.getString("turma_id"),
+                            rs.getString("turma_nome"),
+                            rs.getString("escola_nome"),
+                            rs.getInt("total_chamadas"),
+                            rs.getDouble("media_presenca"),
+                            ultData != null ? ultData.toLocalDate() : null
+                    ));
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Erro ao buscar resumo de turmas: " + e.getMessage());
+        }
+        return lista;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // REGISTRO DE HORAS
+    // ─────────────────────────────────────────────────────────────────────────
 
     /**
-     * Lista o registro de horas do professor.
-     * @param mes  1–12 ou null para todos os meses
-     * @param ano  ex: 2026 ou null para todos os anos
+     * Para o professor: filtra pelo próprio ID.
      */
-    public List<RegistroHoras> listarRegistroHoras(String professorId,
-                                                   Integer mes, Integer ano) {
+    public List<RegistroHoras> listarRegistroHoras(String professorId, Integer mes, Integer ano) {
+        return listarRegistroHorasInterno(professorId, mes, ano);
+    }
+
+    /**
+     * Para o admin: professorId pode ser null (todos os professores).
+     */
+    public List<RegistroHoras> listarRegistroHorasAdmin(String professorId, Integer mes, Integer ano) {
+        return listarRegistroHorasInterno(professorId, mes, ano);
+    }
+
+    private List<RegistroHoras> listarRegistroHorasInterno(String professorId,
+                                                           Integer mes, Integer ano) {
+        List<Object> params = new ArrayList<>();
         StringBuilder sql = new StringBuilder("""
-            SELECT chamada_id, turma_id, turma_nome, escola_nome,
-                   data_aula, horario_inicio, horario_fim,
+            SELECT chamada_id, professor_id, professor_nome,
+                   turma_id, turma_nome, escola_nome,
+                   data_aula, horario_inicio, horario_fim, tipo_aula,
                    horas_ministradas, total_alunos, total_presentes, total_ausentes
             FROM v_registro_horas
-            WHERE professor_id = ?::uuid
+            WHERE 1=1
             """);
-
-        if (mes != null) sql.append(" AND EXTRACT(MONTH FROM data_aula) = ").append(mes);
-        if (ano != null) sql.append(" AND EXTRACT(YEAR  FROM data_aula) = ").append(ano);
-        sql.append(" ORDER BY data_aula DESC, horario_inicio");
+        if (professorId != null) {
+            sql.append(" AND professor_id = ?::uuid");
+            params.add(professorId);
+        }
+        if (mes != null) {
+            sql.append(" AND mes = ?");
+            params.add(mes);
+        }
+        if (ano != null) {
+            sql.append(" AND ano = ?");
+            params.add(ano);
+        }
+        sql.append(" ORDER BY data_aula DESC, professor_nome, horario_inicio");
 
         List<RegistroHoras> lista = new ArrayList<>();
         try (Connection conn = ConexaoBD.conectar();
              PreparedStatement stmt = conn.prepareStatement(sql.toString())) {
-            stmt.setString(1, professorId);
+            for (int i = 0; i < params.size(); i++) {
+                Object p = params.get(i);
+                if (p instanceof String) stmt.setString(i + 1, (String) p);
+                else if (p instanceof Integer) stmt.setInt(i + 1, (Integer) p);
+            }
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
                     lista.add(new RegistroHoras(
                             rs.getString("chamada_id"),
+                            rs.getString("professor_id"),
+                            rs.getString("professor_nome"),
                             rs.getString("turma_id"),
                             rs.getString("turma_nome"),
                             rs.getString("escola_nome"),
                             rs.getDate("data_aula").toLocalDate(),
                             rs.getString("horario_inicio"),
                             rs.getString("horario_fim"),
+                            rs.getString("tipo_aula"),
                             rs.getDouble("horas_ministradas"),
                             rs.getInt("total_alunos"),
                             rs.getInt("total_presentes"),
@@ -192,33 +291,22 @@ public class ChamadaDAO {
         return lista;
     }
 
-    // ── Helpers ────────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────────
+    // HELPERS
+    // ─────────────────────────────────────────────────────────────────────────
 
-    private List<Chamada> buscarChamadas(String sql, String professorId,
-                                         Integer mes, Integer ano) {
-        List<Chamada> lista = new ArrayList<>();
-        try (Connection conn = ConexaoBD.conectar();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, professorId);
-            try (ResultSet rs = stmt.executeQuery()) {
-                while (rs.next()) {
-                    lista.add(new Chamada(
-                            rs.getString("id"),
-                            rs.getString("professor_id"),
-                            rs.getString("turma_id"),
-                            rs.getString("turma_nome"),
-                            rs.getString("cronograma_id"),
-                            rs.getDate("data_aula").toLocalDate(),
-                            rs.getString("horario_inicio"),
-                            rs.getString("horario_fim"),
-                            rs.getInt("total_alunos"),
-                            rs.getInt("total_presentes")
-                    ));
-                }
-            }
-        } catch (SQLException e) {
-            System.err.println("Erro ao buscar chamadas: " + e.getMessage());
-        }
-        return lista;
+    private Chamada mapearChamada(ResultSet rs) throws SQLException {
+        return new Chamada(
+                rs.getString("id"),
+                rs.getString("professor_id"),
+                rs.getString("turma_id"),
+                rs.getString("turma_nome"),
+                rs.getString("cronograma_id"),
+                rs.getDate("data_aula").toLocalDate(),
+                rs.getString("horario_inicio"),
+                rs.getString("horario_fim"),
+                rs.getInt("total_alunos"),
+                rs.getInt("total_presentes")
+        );
     }
 }

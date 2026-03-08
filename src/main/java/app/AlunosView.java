@@ -83,7 +83,7 @@ public class AlunosView {
         header.setPadding(new Insets(20, 20, 16, 20));
 
         tabela = new TableView<>();
-        tabela.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        tabela.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         tabela.setPlaceholder(new Label("Nenhum aluno cadastrado."));
         VBox.setVgrow(tabela, Priority.ALWAYS);
 
@@ -191,13 +191,10 @@ public class AlunosView {
 
         txtNome = new TextField();
         txtNome.setPromptText("Nome completo");
-        // PATCH: professor não edita
         txtNome.setEditable(mainApp.isAdmin());
 
         txtEmail = new TextField();
         txtEmail.setPromptText("E-mail");
-        // E-mail começa não editável; abrirFormNovo() habilita para novos cadastros.
-        // Na edição permanece bloqueado (e-mail não pode ser alterado).
         txtEmail.setEditable(false);
 
         txtSenha = new PasswordField();

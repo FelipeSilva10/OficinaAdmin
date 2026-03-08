@@ -41,7 +41,6 @@ public class TurmasView {
         escolasDAO = new EscolasDAO();
         professorDAO = new ProfessorDAO();
         construirInterface();
-        // PATCH: professor não precisa do filtro por escola (vê só as suas)
         if (mainApp.isAdmin()) carregarEscolas();
         carregarTurmas();
     }
@@ -52,7 +51,6 @@ public class TurmasView {
         Label lblTitulo = new Label("Gestão de Turmas");
         lblTitulo.setStyle("-fx-font-size: 22px; -fx-font-weight: bold;");
 
-        // PATCH: filtro por escola só aparece para admin
         cbEscolasFiltro = new ComboBox<>();
         cbEscolasFiltro.setPromptText("Filtrar por escola...");
         cbEscolasFiltro.setPrefWidth(250);
@@ -82,7 +80,7 @@ public class TurmasView {
         header.setPadding(new Insets(20, 20, 16, 20));
 
         tabela = new TableView<>();
-        tabela.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        tabela.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         tabela.setPlaceholder(new Label("Nenhuma turma encontrada."));
         VBox.setVgrow(tabela, Priority.ALWAYS);
 

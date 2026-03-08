@@ -17,42 +17,36 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Tela de Chamada — máquina de estados explícita.
+ * Tela de Chamada — maquina de estados explicita.
  *
  *  PREVIEW     → cards de turmas + banner aula ativa (se houver)
- *  FORM        → seletor turma/data + tabela de presença (nova chamada)
- *  HISTORICO   → lista de chamadas já realizadas, com opção de excluir
+ *  FORM        → seletor turma/data + tabela de presenca (nova chamada)
+ *  HISTORICO   → lista de chamadas ja realizadas, com opcao de excluir
  */
 public class ChamadaView {
 
-    // ── Estado ────────────────────────────────────────────────────────────────
     private enum Tela { PREVIEW, FORM, HISTORICO }
     private Tela telaAtual = Tela.PREVIEW;
 
     private BorderPane view;
     private MainFX mainApp;
 
-    // DAOs
     private final ChamadaDAO    chamadaDAO    = new ChamadaDAO();
     private final CronogramaDAO cronogramaDAO = new CronogramaDAO();
     private final TurmaDAO      turmaDAO      = new TurmaDAO();
     private final AlunoDAO      alunoDAO      = new AlunoDAO();
 
-    private static final DateTimeFormatter FMT_BR =
-            DateTimeFormatter.ofPattern("dd/MM/yyyy");
+    private static final DateTimeFormatter FMT_BR = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
-    // ── Painéis (trocados pelo estado) ────────────────────────────────────────
     private VBox painelPreview;
     private VBox painelForm;
     private VBox painelHistorico;
-    private StackPane conteudo;   // único ponto de troca
+    private StackPane conteudo;
 
-    // Banner aula ativa (dentro do preview)
     private VBox   bannerAulaAtiva;
     private Label  lblAulaAtiva;
     private CronogramaAula slotAtual;
 
-    // Form de chamada
     private ComboBox<Turma> cbTurma;
     private DatePicker      dpData;
     private Label           lblCronInfo;
@@ -62,11 +56,9 @@ public class ChamadaView {
     private Button btnSalvar;
     private Label  lblTituloForm;
 
-    // Histórico
     private TableView<Chamada> tabelaHistorico;
     private ObservableList<Chamada> historico = FXCollections.observableArrayList();
 
-    // Tabs de navegação
     private Button tabBtnPreview, tabBtnHistorico;
 
     public ChamadaView(MainFX mainApp) {
@@ -76,18 +68,17 @@ public class ChamadaView {
     }
 
     // =========================================================================
-    // CONSTRUÇÃO DA INTERFACE
+    // CONSTRUCAO
     // =========================================================================
 
     private void construirInterface() {
         view = new BorderPane();
 
-        // ── Header fixo ───────────────────────────────────────────────────────
         Label lblTitulo = new Label("Chamada");
         lblTitulo.setStyle("-fx-font-size: 22px; -fx-font-weight: bold;");
 
-        tabBtnPreview = tabBtn("📋  Turmas");
-        tabBtnHistorico = tabBtn("🗂  Histórico");
+        tabBtnPreview   = tabBtn("Turmas");
+        tabBtnHistorico = tabBtn("Historico");
         tabBtnPreview.setOnAction(e -> ir(Tela.PREVIEW));
         tabBtnHistorico.setOnAction(e -> ir(Tela.HISTORICO));
 
@@ -107,7 +98,6 @@ public class ChamadaView {
         header.setStyle("-fx-background-color: white; " +
                 "-fx-border-color: #e2e8f0; -fx-border-width: 0 0 1 0;");
 
-        // ── Painéis ───────────────────────────────────────────────────────────
         construirPainelPreview();
         construirPainelForm();
         construirPainelHistorico();
@@ -117,13 +107,12 @@ public class ChamadaView {
         view.setCenter(conteudo);
     }
 
-    // ── Painel PREVIEW ────────────────────────────────────────────────────────
+    // ── PREVIEW ───────────────────────────────────────────────────────────────
 
     private void construirPainelPreview() {
         painelPreview = new VBox(0);
         VBox.setVgrow(painelPreview, Priority.ALWAYS);
 
-        // Banner de aula ativa (oculto por padrão)
         bannerAulaAtiva = new VBox(8);
         bannerAulaAtiva.setPadding(new Insets(12, 20, 8, 20));
         bannerAulaAtiva.setVisible(false); bannerAulaAtiva.setManaged(false);
@@ -134,7 +123,7 @@ public class ChamadaView {
                 "-fx-font-weight: bold;");
         lblAulaAtiva.setMaxWidth(Double.MAX_VALUE);
 
-        Button btnIniciar = new Button("✅  Iniciar Chamada Agora");
+        Button btnIniciar = new Button("Iniciar Chamada Agora");
         btnIniciar.setStyle("-fx-background-color: #38a169; -fx-text-fill: white; " +
                 "-fx-background-radius: 8; -fx-padding: 10 20; -fx-font-weight: bold;");
         btnIniciar.setOnAction(e -> {
@@ -145,7 +134,6 @@ public class ChamadaView {
         });
         bannerAulaAtiva.getChildren().addAll(lblAulaAtiva, btnIniciar);
 
-        // Área de cards — preenchida em carregarPreview()
         VBox areaCards = new VBox(12);
         areaCards.setPadding(new Insets(8, 20, 16, 20));
         VBox.setVgrow(areaCards, Priority.ALWAYS);
@@ -156,22 +144,21 @@ public class ChamadaView {
         VBox.setVgrow(scroll, Priority.ALWAYS);
 
         painelPreview.getChildren().addAll(bannerAulaAtiva, scroll);
-        // Guarda a referência de areaCards para preencher depois
         painelPreview.setUserData(areaCards);
     }
 
-    // ── Painel FORM ───────────────────────────────────────────────────────────
+    // ── FORM ──────────────────────────────────────────────────────────────────
 
     private void construirPainelForm() {
         painelForm = new VBox(0);
         painelForm.setVisible(false);
         VBox.setVgrow(painelForm, Priority.ALWAYS);
 
-        // Sub-header do form
         Button btnVoltar = new Button("← Voltar");
         btnVoltar.setStyle("-fx-background-color: transparent; -fx-text-fill: #3182ce; " +
                 "-fx-font-weight: bold; -fx-cursor: hand; -fx-font-size: 13px;");
-        btnVoltar.setOnAction(e -> voltarDoForm());
+        // Sem confirmacao: volta direto descartando
+        btnVoltar.setOnAction(e -> { presencas.clear(); ir(Tela.PREVIEW); });
 
         lblTituloForm = new Label("Nova Chamada");
         lblTituloForm.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
@@ -183,7 +170,6 @@ public class ChamadaView {
         subHeader.setStyle("-fx-background-color: #f7fafc; -fx-border-color: #e2e8f0; " +
                 "-fx-border-width: 0 0 1 0;");
 
-        // Seletor turma / data
         cbTurma = new ComboBox<>();
         cbTurma.setPromptText("Turma..."); cbTurma.setPrefWidth(240);
         cbTurma.setCellFactory(lv -> celulaTurma()); cbTurma.setButtonCell(celulaTurma());
@@ -206,7 +192,6 @@ public class ChamadaView {
         barSeletor.setStyle("-fx-background-color: #f7fafc; -fx-border-color: #e2e8f0; " +
                 "-fx-border-width: 0 0 1 0;");
 
-        // Tabela de presenças
         tabelaPresenca = new TableView<>();
         tabelaPresenca.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         tabelaPresenca.setEditable(true);
@@ -223,9 +208,8 @@ public class ChamadaView {
         colPres.setEditable(true); colPres.setMaxWidth(110); colPres.setMinWidth(110);
         tabelaPresenca.getColumns().addAll(colNome, colPres);
 
-        // Barra de atalhos
-        Button btnTodos  = atalhoBtn("✔ Todos");
-        Button btnNenhum = atalhoBtn("✖ Nenhum");
+        Button btnTodos  = atalhoBtn("Todos presentes");
+        Button btnNenhum = atalhoBtn("Todos ausentes");
         btnTodos.setOnAction(e  -> presencas.forEach(p -> p.setPresente(true)));
         btnNenhum.setOnAction(e -> presencas.forEach(p -> p.setPresente(false)));
 
@@ -239,8 +223,7 @@ public class ChamadaView {
         atalhos.setPadding(new Insets(8, 20, 8, 20));
         atalhos.setAlignment(Pos.CENTER_LEFT);
 
-        // Rodapé
-        btnSalvar = new Button("💾  Salvar Chamada");
+        btnSalvar = new Button("Salvar Chamada");
         btnSalvar.setStyle("-fx-background-color: #28a745; -fx-text-fill: white; " +
                 "-fx-background-radius: 8; -fx-padding: 10 20; -fx-font-weight: bold;");
         btnSalvar.setDisable(true);
@@ -257,7 +240,7 @@ public class ChamadaView {
         VBox.setVgrow(corpoForm, Priority.ALWAYS);
     }
 
-    // ── Painel HISTÓRICO ──────────────────────────────────────────────────────
+    // ── HISTORICO ─────────────────────────────────────────────────────────────
 
     private void construirPainelHistorico() {
         painelHistorico = new VBox(0);
@@ -283,12 +266,12 @@ public class ChamadaView {
         TableColumn<Chamada, String> cTurma = new TableColumn<>("Turma");
         cTurma.setCellValueFactory(cd -> new SimpleStringProperty(cd.getValue().getTurmaNome()));
 
-        TableColumn<Chamada, String> cHor = new TableColumn<>("Horário");
+        TableColumn<Chamada, String> cHor = new TableColumn<>("Horario");
         cHor.setCellValueFactory(cd -> new SimpleStringProperty(
                 cd.getValue().getHorarioInicio() + " – " + cd.getValue().getHorarioFim()));
         cHor.setMaxWidth(130);
 
-        TableColumn<Chamada, String> cPres = new TableColumn<>("Presença");
+        TableColumn<Chamada, String> cPres = new TableColumn<>("Presenca");
         cPres.setCellValueFactory(cd -> {
             Chamada c = cd.getValue();
             return new SimpleStringProperty(
@@ -299,17 +282,17 @@ public class ChamadaView {
         });
         cPres.setMaxWidth(140);
 
-        // Coluna de ações (Excluir)
-        TableColumn<Chamada, Void> cAcoes = new TableColumn<>("Ações");
+        TableColumn<Chamada, Void> cAcoes = new TableColumn<>("Acoes");
         cAcoes.setMaxWidth(90); cAcoes.setMinWidth(90);
         cAcoes.setCellFactory(col -> new TableCell<>() {
-            private final Button btnDel = new Button("🗑 Apagar");
+            private final Button btnDel = new Button("Apagar");
             {
                 btnDel.setStyle("-fx-background-color: transparent; -fx-text-fill: #e53e3e; " +
                         "-fx-font-size: 11px; -fx-cursor: hand;");
+                // Sem confirmacao: apaga direto com feedback via toast
                 btnDel.setOnAction(e -> {
                     Chamada c = getTableView().getItems().get(getIndex());
-                    confirmarExclusao(c);
+                    excluirChamada(c);
                 });
             }
             @Override protected void updateItem(Void v, boolean empty) {
@@ -319,12 +302,11 @@ public class ChamadaView {
         });
 
         tabelaHistorico.getColumns().addAll(cData, cTurma, cHor, cPres, cAcoes);
-
         painelHistorico.getChildren().addAll(subH, tabelaHistorico);
     }
 
     // =========================================================================
-    // MÁQUINA DE ESTADOS
+    // MAQUINA DE ESTADOS
     // =========================================================================
 
     private void ir(Tela tela) {
@@ -343,32 +325,15 @@ public class ChamadaView {
         }
     }
 
-    private void recarregarTelaAtual() {
-        ir(telaAtual);
-    }
-
-    private void voltarDoForm() {
-        if (!presencas.isEmpty()) {
-            Alert alerta = new Alert(Alert.AlertType.CONFIRMATION,
-                    "Deseja descartar a chamada em andamento?",
-                    ButtonType.YES, ButtonType.NO);
-            alerta.setHeaderText(null);
-            alerta.showAndWait().ifPresent(btn -> {
-                if (btn == ButtonType.YES) { presencas.clear(); ir(Tela.PREVIEW); }
-            });
-        } else {
-            ir(Tela.PREVIEW);
-        }
-    }
+    private void recarregarTelaAtual() { ir(telaAtual); }
 
     // =========================================================================
-    // PREVIEW — detecção automática + cards
+    // PREVIEW
     // =========================================================================
 
     private void carregarPreview() {
         String profId = mainApp.getSessao().getId();
 
-        // Detecta aula ativa
         LocalDate hoje  = LocalDate.now();
         LocalTime agora = LocalTime.now();
         String diaSem   = diaSemanaPortugues(hoje.getDayOfWeek());
@@ -387,7 +352,7 @@ public class ChamadaView {
                 && !chamadaDAO.chamadaJaExiste(profId, slotAtual.getTurmaId(), hoje);
 
         if (aulaAtiva) {
-            lblAulaAtiva.setText("🟢  Aula em andamento: " + slotAtual.getTurmaNome()
+            lblAulaAtiva.setText("Aula em andamento: " + slotAtual.getTurmaNome()
                     + "   |   " + slotAtual.getHorarioFormatado()
                     + "   |   " + slotAtual.getTipoLabel());
             bannerAulaAtiva.setVisible(true); bannerAulaAtiva.setManaged(true);
@@ -395,7 +360,6 @@ public class ChamadaView {
             bannerAulaAtiva.setVisible(false); bannerAulaAtiva.setManaged(false);
         }
 
-        // Cards
         VBox areaCards = (VBox) painelPreview.getUserData();
         areaCards.getChildren().clear();
 
@@ -403,19 +367,19 @@ public class ChamadaView {
 
         if (!aulaAtiva) {
             Label lblSub = new Label(resumos.isEmpty()
-                    ? "Nenhuma turma atribuída."
-                    : "Visão geral das turmas:");
+                    ? "Nenhuma turma atribuida."
+                    : "Visao geral das turmas:");
             lblSub.setStyle("-fx-text-fill: #718096; -fx-font-size: 13px;");
             areaCards.getChildren().add(lblSub);
         }
 
         FlowPane grade = new FlowPane(16, 12);
         grade.setPrefWrapLength(900);
-        for (ResumoTurma r : resumos) grade.getChildren().add(criarCard(r, profId));
+        for (ResumoTurma r : resumos) grade.getChildren().add(criarCard(r));
         areaCards.getChildren().add(grade);
     }
 
-    private VBox criarCard(ResumoTurma r, String profId) {
+    private VBox criarCard(ResumoTurma r) {
         VBox card = new VBox(6);
         card.setPadding(new Insets(16));
         card.setPrefWidth(220);
@@ -423,23 +387,23 @@ public class ChamadaView {
                 "-fx-border-radius: 10; -fx-background-radius: 10; " +
                 "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.06), 4, 0, 0, 2);");
 
-        Label lNome   = new Label(r.getTurmaNome());
+        Label lNome = new Label(r.getTurmaNome());
         lNome.setStyle("-fx-font-weight: bold; -fx-font-size: 14px; -fx-text-fill: #1a202c;");
         lNome.setWrapText(true);
 
-        Label lEscola = new Label("🏫 " + r.getEscolaNome());
+        Label lEscola = new Label(r.getEscolaNome());
         lEscola.setStyle("-fx-text-fill: #718096; -fx-font-size: 12px;");
 
         Separator sep = new Separator();
 
-        Label lChamadas = new Label("📋 " + r.getTotalChamadas() + " chamadas");
+        Label lChamadas = new Label(r.getTotalChamadas() + " chamadas registradas");
         lChamadas.setStyle("-fx-font-size: 12px; -fx-text-fill: #4a5568;");
 
-        Label lUltima = new Label("🗓 " + r.getUltimaChamadaFormatada());
+        Label lUltima = new Label("Ultima: " + r.getUltimaChamadaFormatada());
         lUltima.setStyle("-fx-font-size: 12px; -fx-text-fill: #4a5568;");
 
         double pct = r.getMediaPresenca();
-        Label lPct = new Label("👥 Presença: " + r.getMediaPresencaFormatada());
+        Label lPct = new Label("Presenca media: " + r.getMediaPresencaFormatada());
         lPct.setStyle("-fx-font-size: 12px; -fx-text-fill: #4a5568;");
 
         ProgressBar bar = new ProgressBar(pct / 100.0);
@@ -460,7 +424,7 @@ public class ChamadaView {
     }
 
     // =========================================================================
-    // FORM — abrir / carregar alunos / salvar
+    // FORM
     // =========================================================================
 
     private void abrirFormManual(Turma turma, LocalDate data) {
@@ -482,7 +446,6 @@ public class ChamadaView {
         lblTituloForm.setText("Nova Chamada");
         ir(Tela.FORM);
 
-        // Se turma já selecionada, carrega direto
         if (turma != null) carregarAlunos(cbTurma.getValue(), dpData.getValue());
     }
 
@@ -503,23 +466,22 @@ public class ChamadaView {
         String profId = mainApp.getSessao().getId();
 
         if (chamadaDAO.chamadaJaExiste(profId, turma.getId(), data)) {
-            mainApp.mostrarAviso("Chamada já registrada para " + turma.getNome()
-                    + " em " + data.format(FMT_BR) + ". Use o Histórico para gerenciar.", true);
+            mainApp.mostrarAviso("Chamada ja registrada para " + turma.getNome()
+                    + " em " + data.format(FMT_BR) + ". Use o Historico para gerenciar.", true);
             return;
         }
 
-        // Detecta cronograma
         String dia = diaSemanaPortugues(data.getDayOfWeek());
         slotAtual = cronogramaDAO.listarAtivosParaDia(profId, dia, data).stream()
                 .filter(s -> s.getTurmaId().equals(turma.getId()))
-                .findFirst().orElse(slotAtual); // mantém se já foi passado
+                .findFirst().orElse(slotAtual);
 
         if (slotAtual != null) {
-            lblCronInfo.setText("📅 " + slotAtual.getTipoLabel() + "  " + slotAtual.getHorarioFormatado());
+            lblCronInfo.setText(slotAtual.getTipoLabel() + "  " + slotAtual.getHorarioFormatado());
             lblCronInfo.setStyle("-fx-text-fill: #22543d; -fx-background-color: #c6f6d5; " +
                     "-fx-padding: 6 12; -fx-background-radius: 6; -fx-font-size: 12px;");
         } else {
-            lblCronInfo.setText("⚠  Sem aula prevista para " + dia + " — chamada livre.");
+            lblCronInfo.setText("Sem aula prevista para " + dia + " — chamada livre.");
             lblCronInfo.setStyle("-fx-text-fill: #744210; -fx-background-color: #fefcbf; " +
                     "-fx-padding: 6 12; -fx-background-radius: 6; -fx-font-size: 12px;");
         }
@@ -569,29 +531,20 @@ public class ChamadaView {
     }
 
     // =========================================================================
-    // HISTÓRICO — listar + excluir
+    // HISTORICO
     // =========================================================================
 
     private void carregarHistorico() {
         historico.setAll(chamadaDAO.listarPorProfessor(mainApp.getSessao().getId()));
     }
 
-    private void confirmarExclusao(Chamada c) {
-        Alert alerta = new Alert(Alert.AlertType.CONFIRMATION,
-                "Apagar chamada de " + c.getTurmaNome()
-                        + " em " + c.getDataAula().format(FMT_BR) + "?",
-                ButtonType.YES, ButtonType.NO);
-        alerta.setHeaderText("Esta ação não pode ser desfeita.");
-        alerta.showAndWait().ifPresent(btn -> {
-            if (btn == ButtonType.YES) {
-                if (chamadaDAO.excluirChamada(c.getId())) {
-                    mainApp.mostrarAviso("Chamada apagada.", false);
-                    carregarHistorico();
-                } else {
-                    mainApp.mostrarAviso("Erro ao apagar chamada.", true);
-                }
-            }
-        });
+    private void excluirChamada(Chamada c) {
+        if (chamadaDAO.excluirChamada(c.getId())) {
+            mainApp.mostrarAviso("Chamada apagada.", false);
+            carregarHistorico();
+        } else {
+            mainApp.mostrarAviso("Erro ao apagar chamada.", true);
+        }
     }
 
     // =========================================================================
@@ -634,9 +587,9 @@ public class ChamadaView {
 
     private String diaSemanaPortugues(DayOfWeek dow) {
         return switch (dow) {
-            case MONDAY    -> "SEGUNDA"; case TUESDAY   -> "TERÇA";
+            case MONDAY    -> "SEGUNDA"; case TUESDAY   -> "TERCA";
             case WEDNESDAY -> "QUARTA";  case THURSDAY  -> "QUINTA";
-            case FRIDAY    -> "SEXTA";   case SATURDAY  -> "SÁBADO";
+            case FRIDAY    -> "SEXTA";   case SATURDAY  -> "SABADO";
             default        -> "DOMINGO";
         };
     }

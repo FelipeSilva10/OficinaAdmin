@@ -27,20 +27,16 @@ public class RegistroHorasAdminView {
     private ChamadaDAO chamadaDAO = new ChamadaDAO();
     private ProfessorDAO professorDAO = new ProfessorDAO();
 
-    // Filtros
     private ComboBox<Professor> cbProfessor;
     private ComboBox<String>    cbMes;
     private ComboBox<Integer>   cbAno;
 
-    // Tabela de detalhes
     private TableView<RegistroHoras> tabelaDetalhe;
     private ObservableList<RegistroHoras> dados = FXCollections.observableArrayList();
 
-    // Tabela de resumo por professor
     private TableView<ProfResumo> tabelaResumo;
     private ObservableList<ProfResumo> resumos = FXCollections.observableArrayList();
 
-    // Cards de totais do filtro selecionado
     private Label lblTotalAulas, lblTotalHoras, lblMediaPresenca;
 
     public RegistroHorasAdminView(MainFX mainApp) {
@@ -52,8 +48,7 @@ public class RegistroHorasAdminView {
     private void construirInterface() {
         view = new BorderPane();
 
-        // ── Cabeçalho ────────────────────────────────────────────────────────
-        Label lblTitulo = new Label("Registro de Horas — Administração");
+        Label lblTitulo = new Label("Registro de Horas — Administracao");
         lblTitulo.setStyle("-fx-font-size: 22px; -fx-font-weight: bold;");
 
         cbProfessor = new ComboBox<>();
@@ -86,13 +81,12 @@ public class RegistroHorasAdminView {
         Region sp = new Region(); HBox.setHgrow(sp, Priority.ALWAYS);
         HBox header = new HBox(12, lblTitulo, sp,
                 new Label("Prof:"), cbProfessor,
-                new Label("Mês:"), cbMes,
+                new Label("Mes:"), cbMes,
                 new Label("Ano:"), cbAno,
                 btnAtualizar);
         header.setAlignment(Pos.CENTER_LEFT);
         header.setPadding(new Insets(20, 20, 12, 20));
 
-        // ── Cards de totais ───────────────────────────────────────────────────
         lblTotalAulas     = new Label("—");
         lblTotalHoras     = new Label("—");
         lblMediaPresenca  = new Label("—");
@@ -101,12 +95,11 @@ public class RegistroHorasAdminView {
                 "-fx-border-radius: 10; -fx-background-radius: 10; -fx-padding: 16 24;";
         VBox cAulas    = card("Total de Aulas",    lblTotalAulas,    "#3182ce", cardStyle);
         VBox cHoras    = card("Total de Horas",    lblTotalHoras,    "#38a169", cardStyle);
-        VBox cPresenca = card("Méd. Presença",     lblMediaPresenca, "#d69e2e", cardStyle);
+        VBox cPresenca = card("Media de Presenca", lblMediaPresenca, "#d69e2e", cardStyle);
 
         HBox cards = new HBox(16, cAulas, cHoras, cPresenca);
         cards.setPadding(new Insets(0, 20, 12, 20));
 
-        // ── SplitPane: resumo por professor | detalhes ────────────────────────
         // Tabela resumo (para pagamento)
         tabelaResumo = new TableView<>();
         tabelaResumo.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
@@ -123,13 +116,12 @@ public class RegistroHorasAdminView {
         rHoras.setCellValueFactory(c -> new SimpleStringProperty(
                 String.format("%.1fh", c.getValue().totalHoras)));
         rHoras.setMaxWidth(80);
-        TableColumn<ProfResumo, String> rPres = new TableColumn<>("Presença");
+        TableColumn<ProfResumo, String> rPres = new TableColumn<>("Presenca");
         rPres.setCellValueFactory(c -> new SimpleStringProperty(
                 String.format("%.0f%%", c.getValue().mediaPresenca)));
         rPres.setMaxWidth(80);
         tabelaResumo.getColumns().addAll(rProf, rAulas, rHoras, rPres);
 
-        // Destaca linha ao selecionar e filtra detalhes
         tabelaResumo.getSelectionModel().selectedItemProperty().addListener((obs, ov, nv) -> {
             if (nv != null) filtrarDetalhesPorProfessor(nv.professorId);
         });
@@ -139,7 +131,6 @@ public class RegistroHorasAdminView {
         Label lblDica = new Label("Clique numa linha para ver o detalhamento");
         lblDica.setStyle("-fx-text-fill: #a0aec0; -fx-font-size: 11px;");
         VBox painelResumo = new VBox(6, lblResumoTit, lblDica, tabelaResumo);
-        painelResumo.setPadding(new Insets(0, 0, 0, 0));
         VBox.setVgrow(tabelaResumo, Priority.ALWAYS);
 
         // Tabela de detalhes
@@ -161,13 +152,13 @@ public class RegistroHorasAdminView {
         TableColumn<RegistroHoras, String> dTipo = new TableColumn<>("Tipo");
         dTipo.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getTipoLabel()));
         dTipo.setMaxWidth(110);
-        TableColumn<RegistroHoras, String> dHor = new TableColumn<>("Horário");
+        TableColumn<RegistroHoras, String> dHor = new TableColumn<>("Horario");
         dHor.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getHorario()));
         dHor.setMaxWidth(110);
         TableColumn<RegistroHoras, String> dHoras = new TableColumn<>("Horas");
         dHoras.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getHorasFormatadas()));
         dHoras.setMaxWidth(70);
-        TableColumn<RegistroHoras, String> dPres = new TableColumn<>("Presença");
+        TableColumn<RegistroHoras, String> dPres = new TableColumn<>("Presenca");
         dPres.setCellValueFactory(c -> {
             var r = c.getValue();
             return new SimpleStringProperty(r.getTotalPresentes() + "/" + r.getTotalAlunos());
@@ -178,14 +169,12 @@ public class RegistroHorasAdminView {
         Label lblDetTit = new Label("Aulas Detalhadas");
         lblDetTit.setStyle("-fx-font-weight: bold; -fx-font-size: 13px; -fx-text-fill: #2d3748;");
         VBox painelDetalhe = new VBox(6, lblDetTit, tabelaDetalhe);
-        painelDetalhe.setPadding(new Insets(0));
         VBox.setVgrow(tabelaDetalhe, Priority.ALWAYS);
 
         SplitPane split = new SplitPane(painelResumo, painelDetalhe);
         split.setDividerPositions(0.32);
         VBox.setVgrow(split, Priority.ALWAYS);
 
-        // ── Montagem ─────────────────────────────────────────────────────────
         VBox corpo = new VBox(header, cards, split);
         VBox.setVgrow(split, Priority.ALWAYS);
         corpo.setPadding(new Insets(0, 20, 16, 20));
@@ -225,7 +214,6 @@ public class RegistroHorasAdminView {
     }
 
     private void atualizarResumos(List<RegistroHoras> lista) {
-        // Agrupa por professor
         Map<String, List<RegistroHoras>> porProf = lista.stream()
                 .collect(Collectors.groupingBy(r ->
                         r.getProfessorId() != null ? r.getProfessorId() : ""));
@@ -280,7 +268,6 @@ public class RegistroHorasAdminView {
 
     public BorderPane getView() { return view; }
 
-    /** DTO interno para a tabela de resumo por professor. */
     private record ProfResumo(String professorId, String nome,
                               int totalAulas, double totalHoras, double mediaPresenca) {}
 }

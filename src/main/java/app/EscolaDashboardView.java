@@ -38,7 +38,7 @@ public class EscolaDashboardView {
         view = new BorderPane();
         view.setPadding(new Insets(20));
 
-        Button btnVoltar = new Button("⬅ Voltar para Escolas");
+        Button btnVoltar = new Button("← Voltar para Escolas");
         btnVoltar.setOnAction(e -> mainApp.abrirEscolas());
         btnVoltar.setStyle("-fx-background-color: transparent; -fx-cursor: hand; -fx-text-fill: #0366d6;");
 
@@ -59,7 +59,6 @@ public class EscolaDashboardView {
         VBox box = new VBox(15);
         box.setPadding(new Insets(10));
 
-        // PATCH: campo de nova turma apenas para admin
         if (mainApp.isAdmin()) {
             HBox boxNovaTurma = new HBox(10);
             boxNovaTurma.setAlignment(Pos.CENTER_LEFT);
@@ -103,7 +102,6 @@ public class EscolaDashboardView {
         tabelaTurmas.setRowFactory(tv -> {
             TableRow<Turma> row = new TableRow<>();
 
-            // PATCH: excluir turma apenas para admin
             if (mainApp.isAdmin()) {
                 ContextMenu cm = new ContextMenu();
                 MenuItem mi = new MenuItem("Excluir Turma");
@@ -112,7 +110,7 @@ public class EscolaDashboardView {
                     Turma t = row.getItem();
                     if (t != null) {
                         if (turmaDAO.excluir(t.getId())) {
-                            mainApp.mostrarAviso("Turma excluída!", false);
+                            mainApp.mostrarAviso("Turma excluida!", false);
                             carregarDados();
                         } else {
                             mainApp.mostrarAviso("Erro ao excluir turma.", true);
@@ -130,7 +128,6 @@ public class EscolaDashboardView {
                 }
             });
 
-            // PATCH: painel de gerência (atribuir professor) apenas para admin
             if (mainApp.isAdmin()) {
                 tabelaTurmas.getSelectionModel().selectedItemProperty().addListener((obs, oldSel, newSel) -> {
                     if (newSel != null) atualizarPainelDireito(newSel);
@@ -140,13 +137,12 @@ public class EscolaDashboardView {
             return row;
         });
 
-        box.getChildren().addAll(new Label("📚 Turmas da Escola"), tabelaTurmas);
+        box.getChildren().addAll(new Label("Turmas da Escola"), tabelaTurmas);
         VBox.setVgrow(tabelaTurmas, Priority.ALWAYS);
         return box;
     }
 
     private VBox criarPainelDireito() {
-        // PATCH: painel de gerência apenas para admin
         if (!mainApp.isAdmin()) {
             VBox aviso = new VBox(new Label("Selecione uma turma para ver os detalhes."));
             aviso.setPadding(new Insets(10));
@@ -158,7 +154,7 @@ public class EscolaDashboardView {
         painelGerenciar.setStyle("-fx-background-color: #f6f8fa; -fx-border-color: #e1e4e8; -fx-border-radius: 8px;");
         painelGerenciar.setVisible(false);
 
-        Label tituloGerencia = new Label("Gerenciar Regência");
+        Label tituloGerencia = new Label("Gerenciar Regencia");
         tituloGerencia.setStyle("-fx-font-weight: bold; -fx-font-size: 18px;");
 
         lblTurmaNome = new Label("Turma: ");
@@ -167,12 +163,13 @@ public class EscolaDashboardView {
         cbProfessoresGlobais.setPromptText("Selecione um Professor...");
         cbProfessoresGlobais.setMaxWidth(Double.MAX_VALUE);
 
-        Button btnSalvar = new Button("Salvar Alteração");
+        Button btnSalvar = new Button("Salvar Alteracao");
         btnSalvar.setStyle("-fx-background-color: #2ea043; -fx-text-fill: white;");
         btnSalvar.setMaxWidth(Double.MAX_VALUE);
         btnSalvar.setOnAction(e -> salvarProfessorNaTurma());
 
-        painelGerenciar.getChildren().addAll(tituloGerencia, lblTurmaNome, new Label("Atribuir Professor:"), cbProfessoresGlobais, btnSalvar);
+        painelGerenciar.getChildren().addAll(tituloGerencia, lblTurmaNome,
+                new Label("Atribuir Professor:"), cbProfessoresGlobais, btnSalvar);
 
         VBox wrapper = new VBox(new Label("Selecione uma turma na tabela para gerenciar."), painelGerenciar);
         wrapper.setPadding(new Insets(10));

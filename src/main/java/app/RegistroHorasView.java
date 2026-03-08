@@ -9,7 +9,9 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
+import javafx.stage.FileChooser;
 
+import java.io.File;
 import java.time.LocalDate;
 import java.time.Month;
 import java.time.format.TextStyle;
@@ -17,8 +19,7 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Visão do PROFESSOR — suas próprias horas, com filtro de mês/ano.
- * A visão do admin está em RegistroHorasAdminView.
+ * Visao do PROFESSOR — suas proprias horas, com filtro de mes/ano e geracao de PDF.
  */
 public class RegistroHorasView {
 
@@ -31,8 +32,10 @@ public class RegistroHorasView {
 
     private ComboBox<String>  cbMes;
     private ComboBox<Integer> cbAno;
+    private TextField         txtValorHora;
 
-    private Label lblTotalAulas, lblTotalHoras, lblMediaPresenca;
+    private Label lblTotalAulas;
+    private Label lblTotalHoras;
 
     public RegistroHorasView(MainFX mainApp) {
         this.mainApp    = mainApp;
@@ -44,7 +47,7 @@ public class RegistroHorasView {
     private void construirInterface() {
         view = new BorderPane();
 
-        // ── Cabeçalho ──────────────────────────────────────────────────────
+        // ── Cabecalho ──────────────────────────────────────────────────────
         Label lblTitulo = new Label("Meu Registro de Horas");
         lblTitulo.setStyle("-fx-font-size:22px;-fx-font-weight:bold;");
 
@@ -67,15 +70,17 @@ public class RegistroHorasView {
         btnAt.setOnAction(e -> carregar());
 
         Region sp = new Region(); HBox.setHgrow(sp, Priority.ALWAYS);
-        HBox header = new HBox(12, lblTitulo, sp, new Label("Mês:"), cbMes,
-                new Label("Ano:"), cbAno, btnAt);
+        HBox header = new HBox(12, lblTitulo, sp,
+                new Label("Mes:"), cbMes,
+                new Label("Ano:"), cbAno,
+                btnAt);
         header.setAlignment(Pos.CENTER_LEFT);
         header.setPadding(new Insets(20, 20, 12, 20));
 
         // ── Tabela ─────────────────────────────────────────────────────────
         tabela = new TableView<>();
         tabela.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
-        tabela.setPlaceholder(new Label("Nenhuma aula registrada para o período selecionado."));
+        tabela.setPlaceholder(new Label("Nenhuma aula registrada para o periodo selecionado."));
         tabela.setItems(dados);
         VBox.setVgrow(tabela, Priority.ALWAYS);
 
@@ -93,7 +98,7 @@ public class RegistroHorasView {
         TableColumn<RegistroHoras, String> cEscola = new TableColumn<>("Escola");
         cEscola.setCellValueFactory(cd -> new SimpleStringProperty(cd.getValue().getEscolaNome()));
 
-        TableColumn<RegistroHoras, String> cHor = new TableColumn<>("Horário");
+        TableColumn<RegistroHoras, String> cHor = new TableColumn<>("Horario");
         cHor.setCellValueFactory(cd -> new SimpleStringProperty(cd.getValue().getHorario()));
         cHor.setMaxWidth(120);
 
@@ -102,7 +107,7 @@ public class RegistroHorasView {
         cHoras.setMaxWidth(80);
         cHoras.setStyle("-fx-alignment:CENTER;");
 
-        TableColumn<RegistroHoras, String> cPres = new TableColumn<>("Presença");
+        TableColumn<RegistroHoras, String> cPres = new TableColumn<>("Presenca");
         cPres.setCellValueFactory(cd -> new SimpleStringProperty(
                 cd.getValue().getTotalPresentes() + "/" + cd.getValue().getTotalAlunos()));
         cPres.setMaxWidth(90);
@@ -116,33 +121,56 @@ public class RegistroHorasView {
                 super.updateItem(item, empty);
                 if (empty || item == null) { setStyle(""); return; }
                 setStyle(switch (item.getTipoAula()) {
-                    case "REUNIÃO"         -> "-fx-background-color:#faf5ff;";
+                    case "REUNIAO"         -> "-fx-background-color:#faf5ff;";
                     case "AULA_SUBSTITUTA" -> "-fx-background-color:#fffaf0;";
                     default                -> "";
                 });
             }
         });
 
-        // ── Cards de totais ────────────────────────────────────────────────
-        lblTotalAulas    = new Label("—");
-        lblTotalHoras    = new Label("—");
-        lblMediaPresenca = new Label("—");
+        // ── Rodape: totais + geracao de PDF ────────────────────────────────
+        lblTotalAulas = new Label("—");
+        lblTotalHoras = new Label("—");
 
         String cardStyle = "-fx-background-color:#f7fafc;-fx-border-color:#e2e8f0;" +
                 "-fx-border-radius:8;-fx-background-radius:8;-fx-padding:12 24;";
 
-        HBox rodape = new HBox(16,
-                card("Total de Aulas",    lblTotalAulas,    "#3182ce", cardStyle),
-                card("Total de Horas",    lblTotalHoras,    "#38a169", cardStyle),
-                card("Média de Presença", lblMediaPresenca, "#d69e2e", cardStyle));
-        rodape.setPadding(new Insets(12, 20, 16, 20));
+        HBox cardsBox = new HBox(16,
+                card("Total de Aulas", lblTotalAulas, "#3182ce", cardStyle),
+                card("Total de Horas", lblTotalHoras, "#38a169", cardStyle));
+        cardsBox.setAlignment(Pos.CENTER_LEFT);
+
+        // Campo de valor/hora + botao PDF
+        Label lblValor = new Label("Valor/hora (R$):");
+        lblValor.setStyle("-fx-font-size:13px;-fx-text-fill:#2d3748;");
+
+        txtValorHora = new TextField();
+        txtValorHora.setPromptText("Ex: 41,00");
+        txtValorHora.setPrefWidth(110);
+        txtValorHora.setStyle(
+                "-fx-background-radius:8;-fx-border-radius:8;" +
+                        "-fx-border-color:#e2e8f0;-fx-padding:6 10;-fx-font-size:13px;");
+
+        Button btnPdf = new Button("Gerar Relatorio PDF");
+        btnPdf.setStyle(
+                "-fx-background-color:#2d3748;-fx-text-fill:white;" +
+                        "-fx-background-radius:8;-fx-padding:8 18;-fx-font-weight:bold;-fx-font-size:13px;");
+        btnPdf.setOnAction(e -> gerarPdf());
+
+        Region spRodape = new Region(); HBox.setHgrow(spRodape, Priority.ALWAYS);
+
+        HBox rodape = new HBox(16, cardsBox, spRodape, lblValor, txtValorHora, btnPdf);
         rodape.setAlignment(Pos.CENTER_LEFT);
+        rodape.setPadding(new Insets(12, 20, 16, 20));
+        rodape.setStyle("-fx-border-color:#e2e8f0;-fx-border-width:1 0 0 0;");
 
         // ── Montagem ───────────────────────────────────────────────────────
         VBox centro = new VBox(header, tabela, rodape);
         VBox.setVgrow(tabela, Priority.ALWAYS);
         view.setCenter(centro);
     }
+
+    // ── Carregar dados ─────────────────────────────────────────────────────
 
     private void carregar() {
         String profId = mainApp.getSessao().getId();
@@ -155,14 +183,64 @@ public class RegistroHorasView {
 
     private void atualizarTotais(List<RegistroHoras> lista) {
         double horas = lista.stream().mapToDouble(RegistroHoras::getHorasMinistradas).sum();
-        double pres  = lista.stream()
-                .filter(r -> r.getTotalAlunos() > 0)
-                .mapToDouble(r -> (double) r.getTotalPresentes() / r.getTotalAlunos() * 100)
-                .average().orElse(0);
         lblTotalAulas.setText(String.valueOf(lista.size()));
         lblTotalHoras.setText(String.format("%.1fh", horas));
-        lblMediaPresenca.setText(String.format("%.0f%%", pres));
     }
+
+    // ── Gerar PDF ──────────────────────────────────────────────────────────
+
+    private void gerarPdf() {
+        if (dados.isEmpty()) {
+            mainApp.mostrarAviso("Nenhum registro para gerar relatorio.", true);
+            return;
+        }
+
+        // Parse do valor/hora
+        double valorHora = 0;
+        String vStr = txtValorHora.getText().replace(",", ".").trim();
+        if (!vStr.isBlank()) {
+            try {
+                valorHora = Double.parseDouble(vStr);
+            } catch (NumberFormatException ex) {
+                mainApp.mostrarAviso("Valor/hora invalido. Use formato: 41,00", true);
+                return;
+            }
+        }
+
+        // FileChooser para salvar
+        FileChooser fc = new FileChooser();
+        fc.setTitle("Salvar Relatorio de Horas");
+        fc.getExtensionFilters().add(
+                new FileChooser.ExtensionFilter("Arquivo PDF", "*.pdf"));
+
+        // Sugestao de nome baseada no periodo selecionado
+        String mesStr = cbMes.getValue().equals("Todos os meses")
+                ? "Todos" : cbMes.getValue().substring(0, 3).toUpperCase();
+        fc.setInitialFileName("Relatorio_Horas_" + mesStr + "_" + cbAno.getValue() + ".pdf");
+
+        File arquivo = fc.showSaveDialog(mainApp.getStage());
+        if (arquivo == null) return;
+
+        final double vH = valorHora;
+        final String caminho = arquivo.getAbsolutePath();
+        final String nomeProf = mainApp.getSessao().getNome();
+        final List<RegistroHoras> copia = List.copyOf(dados);
+
+        // Gera em thread separada para nao travar a UI
+        new Thread(() -> {
+            try {
+                report.RelatorioHorasPdf.gerar(copia, nomeProf, vH, caminho);
+                javafx.application.Platform.runLater(() ->
+                        mainApp.mostrarAviso("PDF gerado com sucesso!", false));
+            } catch (Exception ex) {
+                ex.printStackTrace();
+                javafx.application.Platform.runLater(() ->
+                        mainApp.mostrarAviso("Erro ao gerar PDF: " + ex.getMessage(), true));
+            }
+        }).start();
+    }
+
+    // ── Helpers ────────────────────────────────────────────────────────────
 
     private Integer resolverMes() {
         String sel = cbMes.getValue();

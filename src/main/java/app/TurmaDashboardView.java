@@ -31,7 +31,7 @@ public class TurmaDashboardView {
         view = new BorderPane();
         view.setPadding(new Insets(20));
 
-        Button btnVoltar = new Button("⬅ Voltar");
+        Button btnVoltar = new Button("← Voltar");
         btnVoltar.setOnAction(e -> mainApp.abrirTurmas(null));
         btnVoltar.setStyle("-fx-background-color: transparent; -fx-cursor: hand; -fx-text-fill: #0366d6;");
 
@@ -53,7 +53,7 @@ public class TurmaDashboardView {
         colNome.setCellValueFactory(new PropertyValueFactory<>("nome"));
         tabelaAlunos.getColumns().add(colNome);
 
-        view.setCenter(new VBox(10, new Label("🎓 Alunos Matriculados:"), tabelaAlunos));
+        view.setCenter(new VBox(10, new Label("Alunos Matriculados:"), tabelaAlunos));
     }
 
     private void carregarDados() {

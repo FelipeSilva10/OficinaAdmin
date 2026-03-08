@@ -18,7 +18,7 @@ import java.util.List;
 public class CronogramaView {
 
     private static final String[] DIAS =
-            {"SEGUNDA","TERÇA","QUARTA","QUINTA","SEXTA","SÁBADO"};
+            {"SEGUNDA","TERCA","QUARTA","QUINTA","SEXTA","SABADO"};
 
     private BorderPane view;
     private MainFX mainApp;
@@ -29,7 +29,6 @@ public class CronogramaView {
     private ObservableList<CronogramaAula> dados = FXCollections.observableArrayList();
     private TableView<CronogramaAula> tabela;
 
-    // Form ocasional (professor só pode adicionar REUNIÃO / AULA_SUBSTITUTA)
     private VBox      painelForm;
     private ComboBox<Turma>   cbTurma;
     private ComboBox<String>  cbTipo;
@@ -46,19 +45,18 @@ public class CronogramaView {
     private void construirInterface() {
         view = new BorderPane();
 
-        // ── Cabeçalho ────────────────────────────────────────────────────────
         Label lblTitulo = new Label("Meu Cronograma");
         lblTitulo.setStyle("-fx-font-size: 22px; -fx-font-weight: bold;");
 
-        Label lblInfo = new Label("💡 Horários de aula regulares são definidos pelo administrador. " +
-                "Você pode registrar reuniões e aulas substitutas.");
+        Label lblInfo = new Label("Horarios de aula regulares sao definidos pelo administrador. " +
+                "Voce pode registrar reunioes e aulas substitutas.");
         lblInfo.setStyle("-fx-text-fill: #718096; -fx-font-size: 12px;");
         lblInfo.setWrapText(true);
 
         Button btnAtualizar = new Button("Atualizar");
         btnAtualizar.setOnAction(e -> carregar());
 
-        Button btnNovo = new Button("+ Reunião / Substituta");
+        Button btnNovo = new Button("+ Reuniao / Substituta");
         btnNovo.setStyle("-fx-background-color: #6b46c1; -fx-text-fill: white; " +
                 "-fx-background-radius: 8; -fx-padding: 8 16; -fx-font-weight: bold;");
         btnNovo.setOnAction(e -> abrirFormOcasional());
@@ -71,13 +69,12 @@ public class CronogramaView {
         HBox headerInfo = new HBox(lblInfo);
         headerInfo.setPadding(new Insets(0, 20, 12, 20));
 
-        // ── Grid semanal ─────────────────────────────────────────────────────
         gridSemanal = new GridPane();
         gridSemanal.setHgap(8); gridSemanal.setVgap(4);
         gridSemanal.setPadding(new Insets(0, 20, 12, 20));
 
         for (int i = 0; i < DIAS.length; i++) {
-            Label lblDia = new Label(DIAS[i]);
+            Label lblDia = new Label(abreviarDia(DIAS[i]));
             lblDia.setMaxWidth(Double.MAX_VALUE);
             lblDia.setAlignment(Pos.CENTER);
             lblDia.setStyle("-fx-background-color: #2d3748; -fx-text-fill: white; " +
@@ -87,10 +84,9 @@ public class CronogramaView {
             GridPane.setHgrow(lblDia, Priority.ALWAYS);
         }
 
-        // ── Tabela de todos os slots ─────────────────────────────────────────
         tabela = new TableView<>();
         tabela.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-        tabela.setPlaceholder(new Label("Nenhum horário no cronograma."));
+        tabela.setPlaceholder(new Label("Nenhum horario no cronograma."));
         tabela.setItems(dados);
         VBox.setVgrow(tabela, Priority.ALWAYS);
 
@@ -108,47 +104,18 @@ public class CronogramaView {
         cTurma.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(
                 c.getValue().getTurmaNome()));
 
-        TableColumn<CronogramaAula, String> cHor = new TableColumn<>("Horário");
+        TableColumn<CronogramaAula, String> cHor = new TableColumn<>("Horario");
         cHor.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(
                 c.getValue().getHorarioFormatado()));
         cHor.setMaxWidth(110);
 
-        TableColumn<CronogramaAula, String> cPer = new TableColumn<>("Período");
+        TableColumn<CronogramaAula, String> cPer = new TableColumn<>("Periodo");
         cPer.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(
                 c.getValue().getPeriodo()));
 
         tabela.getColumns().addAll(cTipo, cDia, cTurma, cHor, cPer);
 
-        // Menu contexto: apenas para slots OCASIONAIS criados pelo próprio professor
-        tabela.setRowFactory(tv -> {
-            TableRow<CronogramaAula> row = new TableRow<>();
-            row.setOnMouseClicked(ev -> {
-                if (ev.getClickCount() == 2 && !row.isEmpty()
-                        && row.getItem().isOcasional()
-                        && "PROFESSOR".equals(row.getItem().getCriadoPor())) {
-                    abrirFormEditar(row.getItem());
-                }
-            });
-            row.emptyProperty().addListener((o, w, n) -> {
-                if (!n && row.getItem() != null
-                        && row.getItem().isOcasional()
-                        && "PROFESSOR".equals(row.getItem().getCriadoPor())) {
-                    ContextMenu cm = new ContextMenu();
-                    MenuItem miEd = new MenuItem("Editar");
-                    MenuItem miDel = new MenuItem("Excluir");
-                    miDel.setStyle("-fx-text-fill: red;");
-                    miEd.setOnAction(e -> abrirFormEditar(row.getItem()));
-                    miDel.setOnAction(e -> excluir(row.getItem()));
-                    cm.getItems().addAll(miEd, miDel);
-                    row.setContextMenu(cm);
-                } else {
-                    row.setContextMenu(null);
-                }
-            });
-            return row;
-        });
-
-        // Colore linhas ocasionais de forma diferente
+        // Colorir linhas ocasionais e menu contexto apenas para criados pelo professor
         tabela.setRowFactory(tv -> new TableRow<>() {
             @Override protected void updateItem(CronogramaAula item, boolean empty) {
                 super.updateItem(item, empty);
@@ -182,7 +149,7 @@ public class CronogramaView {
             }
         });
 
-        // ── Formulário ocasional ─────────────────────────────────────────────
+        // ── Formulario ocasional ─────────────────────────────────────────
         painelForm = new VBox(12);
         painelForm.setPadding(new Insets(24));
         painelForm.setStyle("-fx-background-color: white; " +
@@ -211,13 +178,13 @@ public class CronogramaView {
             }
         });
 
-        cbTipo = new ComboBox<>(FXCollections.observableArrayList("REUNIÃO","AULA_SUBSTITUTA"));
-        cbTipo.setValue("REUNIÃO"); cbTipo.setMaxWidth(Double.MAX_VALUE);
+        cbTipo = new ComboBox<>(FXCollections.observableArrayList("REUNIAO","AULA_SUBSTITUTA"));
+        cbTipo.setValue("REUNIAO"); cbTipo.setMaxWidth(Double.MAX_VALUE);
 
         dpData = new DatePicker(LocalDate.now());
         dpData.setMaxWidth(Double.MAX_VALUE);
 
-        txtInicio = new TextField(); txtInicio.setPromptText("Início: 08:00");
+        txtInicio = new TextField(); txtInicio.setPromptText("Inicio: 08:00");
         txtFim    = new TextField(); txtFim.setPromptText("Fim: 09:30");
 
         Label lblDica = new Label("Formato HH:mm");
@@ -234,12 +201,11 @@ public class CronogramaView {
                 new Label("Turma:"), cbTurma,
                 new Label("Tipo:"), cbTipo,
                 new Label("Data:"), dpData,
-                new Label("Horário Início:"), txtInicio,
-                new Label("Horário Fim:"), txtFim,
+                new Label("Horario Inicio:"), txtInicio,
+                new Label("Horario Fim:"), txtFim,
                 lblDica, btnSalvar
         );
 
-        // ── Montagem ─────────────────────────────────────────────────────────
         VBox centro = new VBox(headerTop, headerInfo, gridSemanal, tabela);
         VBox.setVgrow(tabela, Priority.ALWAYS);
         HBox main = new HBox(centro, painelForm);
@@ -269,7 +235,7 @@ public class CronogramaView {
 
             String bg, border, fg;
             switch (slot.getTipo()) {
-                case "REUNIÃO"         -> { bg = "#faf5ff"; border = "#d6bcfa"; fg = "#553c9a"; }
+                case "REUNIAO"         -> { bg = "#faf5ff"; border = "#d6bcfa"; fg = "#553c9a"; }
                 case "AULA_SUBSTITUTA" -> { bg = "#fffaf0"; border = "#fbd38d"; fg = "#744210"; }
                 default                -> { bg = "#ebf8ff"; border = "#bee3f8"; fg = "#2b6cb0"; }
             }
@@ -303,7 +269,7 @@ public class CronogramaView {
         editando = null;
         cbTurma.getItems().setAll(turmaDAO.listarPorProfessor(mainApp.getSessao().getId()));
         cbTurma.getSelectionModel().clearSelection();
-        cbTipo.setValue("REUNIÃO");
+        cbTipo.setValue("REUNIAO");
         dpData.setValue(LocalDate.now());
         txtInicio.clear(); txtFim.clear();
         mostrarForm();
@@ -334,7 +300,7 @@ public class CronogramaView {
             mainApp.mostrarAviso("Preencha todos os campos.", true); return;
         }
         if (!inicio.matches("\\d{2}:\\d{2}") || !fim.matches("\\d{2}:\\d{2}")) {
-            mainApp.mostrarAviso("Horário inválido. Use HH:mm.", true); return;
+            mainApp.mostrarAviso("Horario invalido. Use HH:mm.", true); return;
         }
 
         String dia = diaSemanaPortugues(dt.getDayOfWeek());
@@ -367,14 +333,24 @@ public class CronogramaView {
         for (int i = 0; i < DIAS.length; i++) if (DIAS[i].equals(dia)) return i;
         return -1;
     }
+
+    private String abreviarDia(String dia) {
+        return switch (dia) {
+            case "SEGUNDA" -> "SEG"; case "TERCA"  -> "TER"; case "QUARTA" -> "QUA";
+            case "QUINTA"  -> "QUI"; case "SEXTA"  -> "SEX"; case "SABADO" -> "SAB";
+            default -> dia;
+        };
+    }
+
     private String diaSemanaPortugues(DayOfWeek dow) {
         return switch (dow) {
-            case MONDAY    -> "SEGUNDA"; case TUESDAY   -> "TERÇA";
+            case MONDAY    -> "SEGUNDA"; case TUESDAY   -> "TERCA";
             case WEDNESDAY -> "QUARTA";  case THURSDAY  -> "QUINTA";
-            case FRIDAY    -> "SEXTA";   case SATURDAY  -> "SÁBADO";
+            case FRIDAY    -> "SEXTA";   case SATURDAY  -> "SABADO";
             default        -> "DOMINGO";
         };
     }
+
     private void mostrarForm() { painelForm.setVisible(true); painelForm.setManaged(true); }
     private void fecharForm()  {
         painelForm.setVisible(false); painelForm.setManaged(false);

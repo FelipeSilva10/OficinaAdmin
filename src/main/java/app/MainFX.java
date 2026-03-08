@@ -23,25 +23,20 @@ public class MainFX {
 
     private UsuarioSessao sessaoAtual;
 
-    // ── Módulos comuns ────────────────────────────────────────────────────────
     private EscolasView             escolasView;
     private TurmasView              turmasView;
     private AlunosView              alunosView;
 
-    // ── Módulos admin ─────────────────────────────────────────────────────────
     private ProfessoresView         professoresView;
     private CronogramaAdminView     cronogramaAdminView;
     private RegistroHorasAdminView  registroHorasAdminView;
 
-    // ── Módulos professor ─────────────────────────────────────────────────────
     private CronogramaView          cronogramaView;
     private ChamadaView             chamadaView;
     private RegistroHorasView       registroHorasView;
 
     private Button btnAtivo;
     private Label  breadcrumb;
-
-    // ─────────────────────────────────────────────────────────────────────────
 
     public boolean isAdmin() {
         return sessaoAtual != null && "ADMIN".equals(sessaoAtual.getRole());
@@ -168,7 +163,8 @@ public class MainFX {
         Label lblNome = new Label("Oficina Admin");
         lblNome.setStyle("-fx-font-size:17px;-fx-font-weight:bold;-fx-text-fill:#1a202c;");
 
-        Label lblUser = new Label((isAdmin() ? "👑 Admin: " : "🎓 Prof: ") + sessaoAtual.getNome());
+        String roleLabel = isAdmin() ? "Admin" : "Professor";
+        Label lblUser = new Label(roleLabel + ": " + sessaoAtual.getNome());
         lblUser.setStyle("-fx-font-size:13px;-fx-text-fill:#718096;" +
                 "-fx-background-color:#edf2f7;-fx-padding:4 10;-fx-background-radius:6;");
 
@@ -202,37 +198,35 @@ public class MainFX {
     private VBox criarSidebar() {
         VBox sidebar = new VBox(4);
         sidebar.setPadding(new Insets(24, 14, 24, 14));
-        sidebar.setPrefWidth(240);
+        sidebar.setPrefWidth(220);
         sidebar.setStyle("-fx-background-color:#1a202c;");
 
-        // Botões comuns
-        Button btnEscolas = navBtn("🏫  Escolas");
-        Button btnTurmas  = navBtn("📚  Turmas");
-        Button btnAlunos  = navBtn("🎒  Alunos");
+        Button btnEscolas = navBtn("Escolas");
+        Button btnTurmas  = navBtn("Turmas");
+        Button btnAlunos  = navBtn("Alunos");
         btnEscolas.setOnAction(e -> { ativar(btnEscolas); abrirEscolas(); });
         btnTurmas.setOnAction(e  -> { ativar(btnTurmas);  navegarPara(turmasView.getView(), "Turmas"); });
         btnAlunos.setOnAction(e  -> { ativar(btnAlunos);  navegarPara(alunosView.getView(), "Alunos"); });
 
         Region spacer = new Region(); VBox.setVgrow(spacer, Priority.ALWAYS);
 
-        Button btnSair = navBtn("⎋  Sair");
+        Button btnSair = navBtn("Sair");
         btnSair.setStyle(navStyle(false) + "-fx-text-fill:#fc8181;");
         btnSair.setOnMouseEntered(e -> btnSair.setStyle(navStyle(true)  + "-fx-text-fill:#fc8181;"));
         btnSair.setOnMouseExited(e  -> btnSair.setStyle(navStyle(false) + "-fx-text-fill:#fc8181;"));
         btnSair.setOnAction(e -> sair());
 
         if (isAdmin()) {
-            // ── Sidebar Admin: tudo ──────────────────────────────────────────
-            Button btnProfessores    = navBtn("👤  Professores");
-            Button btnCronograma     = navBtn("📅  Cronograma");
-            Button btnRegHoras       = navBtn("💰  Horas & Pagamento");
+            Button btnProfessores    = navBtn("Professores");
+            Button btnCronograma     = navBtn("Cronograma");
+            Button btnRegHoras       = navBtn("Horas e Pagamento");
 
             btnProfessores.setOnAction(e -> { ativar(btnProfessores); navegarPara(professoresView.getView(), "Professores"); });
             btnCronograma.setOnAction(e  -> { ativar(btnCronograma);  navegarPara(cronogramaAdminView.getView(), "Cronograma"); });
-            btnRegHoras.setOnAction(e    -> { ativar(btnRegHoras);    navegarPara(registroHorasAdminView.getView(), "Horas & Pagamento"); });
+            btnRegHoras.setOnAction(e    -> { ativar(btnRegHoras);    navegarPara(registroHorasAdminView.getView(), "Horas e Pagamento"); });
 
             sidebar.getChildren().addAll(
-                    secaoLabel("GESTÃO"),
+                    secaoLabel("GESTAO"),
                     btnEscolas, btnTurmas, btnProfessores, btnAlunos,
                     new Separator(),
                     secaoLabel("PROFESSOR"),
@@ -241,10 +235,9 @@ public class MainFX {
             ativar(btnEscolas);
 
         } else {
-            // ── Sidebar Professor ────────────────────────────────────────────
-            Button btnCronograma    = navBtn("📅  Cronograma");
-            Button btnChamada       = navBtn("✅  Chamada");
-            Button btnRegistroHoras = navBtn("🕐  Registro de Horas");
+            Button btnCronograma    = navBtn("Cronograma");
+            Button btnChamada       = navBtn("Chamada");
+            Button btnRegistroHoras = navBtn("Registro de Horas");
 
             btnCronograma.setOnAction(e    -> { ativar(btnCronograma);    navegarPara(cronogramaView.getView(), "Cronograma"); });
             btnChamada.setOnAction(e       -> { ativar(btnChamada);       navegarPara(chamadaView.getView(), "Chamada"); });
@@ -254,10 +247,10 @@ public class MainFX {
             sep.setStyle("-fx-background-color:#2d3748;");
 
             sidebar.getChildren().addAll(
-                    secaoLabel("GESTÃO"),
+                    secaoLabel("GESTAO"),
                     btnEscolas, btnTurmas, btnAlunos,
                     sep,
-                    secaoLabel("MÓDULOS"),
+                    secaoLabel("MODULOS"),
                     btnCronograma, btnChamada, btnRegistroHoras,
                     spacer, btnSair);
             ativar(btnEscolas);
@@ -305,7 +298,7 @@ public class MainFX {
         btn.setStyle(navStyleAtivo());
     }
 
-    // ── Navegação pública ─────────────────────────────────────────────────────
+    // ── Navegacao publica ─────────────────────────────────────────────────────
 
     public void abrirEscolas() {
         root.setCenter(escolasView.getView());

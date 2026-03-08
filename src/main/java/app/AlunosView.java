@@ -15,6 +15,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.input.MouseButton;
 import javafx.scene.layout.*;
 
 public class AlunosView {
@@ -54,7 +55,6 @@ public class AlunosView {
         Label lblTitulo = new Label("Alunos");
         lblTitulo.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #1a202c;");
 
-        // PATCH: subtítulo de escopo para professor
         Label lblEscopo = new Label("Exibindo apenas alunos das suas turmas");
         lblEscopo.setStyle("-fx-text-fill: #718096; -fx-font-size: 12px;");
         lblEscopo.setVisible(!mainApp.isAdmin());
@@ -67,7 +67,6 @@ public class AlunosView {
         Button btnAtualizar = new Button("Atualizar");
         btnAtualizar.setOnAction(e -> carregarDados());
 
-        // PATCH: cadastrar aluno apenas para admin
         Button btnNovo = new Button("+ Cadastrar Aluno");
         btnNovo.setStyle("-fx-background-color: #3182ce; -fx-text-fill: white; -fx-background-radius: 8; -fx-padding: 8 16; -fx-font-weight: bold;");
         btnNovo.setOnAction(e -> abrirFormNovo());
@@ -95,7 +94,6 @@ public class AlunosView {
 
         TableColumn<Aluno, String> colSenha = new TableColumn<>("Senha");
         colSenha.setCellValueFactory(new PropertyValueFactory<>("senha"));
-        // PATCH: professor não vê senha
         colSenha.setVisible(mainApp.isAdmin());
 
         TableColumn<Aluno, String> colEscola = new TableColumn<>("Escola");
@@ -119,26 +117,11 @@ public class AlunosView {
         ordenado.comparatorProperty().bind(tabela.comparatorProperty());
         tabela.setItems(ordenado);
 
-        tabela.getSelectionModel().selectedItemProperty().addListener((obs, old, a) -> {
-            if (a != null) {
-                abrirDetalheAluno(a);
-                btnVerTurma.setVisible(true);
-                btnVerTurma.setManaged(true);
-                lblDetalheInfo.setVisible(true);
-                lblDetalheInfo.setManaged(true);
-                btnVerTurma.setOnAction(ev -> mainApp.abrirTurmas(null));
-            } else {
-                btnVerTurma.setVisible(false);
-                btnVerTurma.setManaged(false);
-                lblDetalheInfo.setVisible(false);
-                lblDetalheInfo.setManaged(false);
-            }
-        });
-
+        // ── Row factory: clique ESQUERDO abre detalhe; DIREITO mostra contexto ──
         tabela.setRowFactory(tv -> {
             TableRow<Aluno> row = new TableRow<>();
 
-            // PATCH: menu de excluir apenas para admin
+            // Menu de contexto apenas para admin
             if (mainApp.isAdmin()) {
                 ContextMenu cm = new ContextMenu();
                 MenuItem miDel = new MenuItem("Excluir Aluno");
@@ -156,13 +139,32 @@ public class AlunosView {
                     }
                 });
                 cm.getItems().add(miDel);
-                row.emptyProperty().addListener((obs, w, n) -> row.setContextMenu(n ? null : cm));
+                // Contexto só aparece em linhas nao-vazias; nunca automaticamente
+                row.emptyProperty().addListener((obs, w, n) -> {
+                    if (n) row.setContextMenu(null);
+                    else   row.setContextMenu(cm);
+                });
             }
+
+            // Clique com botao ESQUERDO abre o painel de detalhe
+            row.setOnMouseClicked(ev -> {
+                if (ev.getButton() != MouseButton.PRIMARY) return;
+                if (row.isEmpty()) return;
+                Aluno a = row.getItem();
+                if (a != null) {
+                    abrirDetalheAluno(a);
+                    btnVerTurma.setVisible(true);
+                    btnVerTurma.setManaged(true);
+                    lblDetalheInfo.setVisible(true);
+                    lblDetalheInfo.setManaged(true);
+                    btnVerTurma.setOnAction(evt -> mainApp.abrirTurmas(null));
+                }
+            });
 
             return row;
         });
 
-        // ── Painel de detalhe ──────────────────────────────────────────────────
+        // ── Painel de detalhe ──────────────────────────────────────────────
         painelDetalhe = new VBox(14);
         painelDetalhe.setPadding(new Insets(24));
         painelDetalhe.setStyle("-fx-background-color: white; -fx-border-color: #e2e8f0; -fx-border-width: 0 0 0 1;");
@@ -186,7 +188,7 @@ public class AlunosView {
         lblDetalheInfo.setVisible(false);
         lblDetalheInfo.setManaged(false);
 
-        Label lblFormTitle = new Label("Dados de Acesso e Matrícula");
+        Label lblFormTitle = new Label("Dados de Acesso e Matricula");
         lblFormTitle.setStyle("-fx-font-weight: bold; -fx-text-fill: #2d3748;");
 
         txtNome = new TextField();
@@ -198,21 +200,19 @@ public class AlunosView {
         txtEmail.setEditable(false);
 
         txtSenha = new PasswordField();
-        txtSenha.setPromptText("Senha (mín. 6 caracteres)");
-        // PATCH: professor não vê/edita senha
+        txtSenha.setPromptText("Senha (min. 6 caracteres)");
         txtSenha.setEditable(mainApp.isAdmin());
         txtSenha.setVisible(mainApp.isAdmin());
         txtSenha.setManaged(mainApp.isAdmin());
 
-        // Label de senha também oculta para professor
         Label lblSenha = new Label("Senha:");
         lblSenha.setVisible(mainApp.isAdmin());
         lblSenha.setManaged(mainApp.isAdmin());
 
         cbEscola = new ComboBox<>();
-        cbEscola.setPromptText("1º Selecione a escola...");
+        cbEscola.setPromptText("1. Selecione a escola...");
         cbEscola.setMaxWidth(Double.MAX_VALUE);
-        cbEscola.setDisable(!mainApp.isAdmin()); // PATCH
+        cbEscola.setDisable(!mainApp.isAdmin());
         cbEscola.setCellFactory(lv -> new ListCell<>() {
             @Override protected void updateItem(Escola e, boolean empty) {
                 super.updateItem(e, empty);
@@ -222,7 +222,7 @@ public class AlunosView {
         cbEscola.setButtonCell(new ListCell<>() {
             @Override protected void updateItem(Escola e, boolean empty) {
                 super.updateItem(e, empty);
-                setText(empty || e == null ? "1º Selecione a escola..." : e.getNome());
+                setText(empty || e == null ? "1. Selecione a escola..." : e.getNome());
             }
         });
         cbEscola.setOnAction(e -> {
@@ -235,7 +235,7 @@ public class AlunosView {
         });
 
         cbTurma = new ComboBox<>();
-        cbTurma.setPromptText("2º Selecione a turma...");
+        cbTurma.setPromptText("2. Selecione a turma...");
         cbTurma.setMaxWidth(Double.MAX_VALUE);
         cbTurma.setDisable(true);
         cbTurma.setCellFactory(lv -> new ListCell<>() {
@@ -247,11 +247,10 @@ public class AlunosView {
         cbTurma.setButtonCell(new ListCell<>() {
             @Override protected void updateItem(Turma t, boolean empty) {
                 super.updateItem(t, empty);
-                setText(empty || t == null ? "2º Selecione a turma..." : t.getNome());
+                setText(empty || t == null ? "2. Selecione a turma..." : t.getNome());
             }
         });
 
-        // PATCH: botão salvar apenas para admin
         btnSalvar = new Button("Cadastrar Aluno");
         btnSalvar.setStyle("-fx-background-color: #3182ce; -fx-text-fill: white; -fx-background-radius: 8; -fx-padding: 8 16; -fx-font-weight: bold;");
         btnSalvar.setMaxWidth(Double.MAX_VALUE);
@@ -286,13 +285,12 @@ public class AlunosView {
     }
 
     private void abrirFormNovo() {
-        // Só admin chega aqui (botão está oculto para professor)
         tabela.getSelectionModel().clearSelection();
         alunoSelecionado = null;
         lblNomeAluno.setText("Novo Aluno");
         btnSalvar.setText("Cadastrar Aluno");
         txtNome.clear(); txtEmail.clear(); txtSenha.clear();
-        txtEmail.setEditable(true);   // novo cadastro: e-mail deve ser digitado
+        txtEmail.setEditable(true);
         txtEmail.setDisable(false);
         cbEscola.getItems().setAll(escolasDAO.listarTodas());
         cbTurma.getItems().clear(); cbTurma.setDisable(true);
@@ -301,15 +299,15 @@ public class AlunosView {
 
     private void abrirDetalheAluno(Aluno aluno) {
         alunoSelecionado = aluno;
-        // PATCH: título diferente para professor (somente visualização)
         lblNomeAluno.setText(mainApp.isAdmin() ? "Editar: " + aluno.getNome() : aluno.getNome());
-        if (mainApp.isAdmin()) btnSalvar.setText("Salvar Alterações");
+        if (mainApp.isAdmin()) btnSalvar.setText("Salvar Alteracoes");
 
-        lblDetalheInfo.setText("Matrícula Atual:\nEscola: " + aluno.getEscolaNome() + "\nTurma: " + aluno.getTurmaNome());
+        lblDetalheInfo.setText("Matricula Atual:\nEscola: " + aluno.getEscolaNome()
+                + "\nTurma: " + aluno.getTurmaNome());
 
         txtNome.setText(aluno.getNome());
         txtEmail.setText(aluno.getEmail());
-        txtEmail.setEditable(false);  // na edição o e-mail nunca pode ser alterado
+        txtEmail.setEditable(false);
         txtEmail.setDisable(true);
         if (mainApp.isAdmin()) txtSenha.setText(aluno.getSenha());
 
@@ -335,7 +333,6 @@ public class AlunosView {
     }
 
     private void cadastrar() {
-        // Só admin chega aqui (botão está oculto para professor)
         String nome = txtNome.getText().trim();
         String email = txtEmail.getText().trim();
         String senha = txtSenha.getText();
@@ -358,7 +355,7 @@ public class AlunosView {
                     mainApp.mostrarAviso("Erro de banco de dados. Tente novamente.", true);
                 }
             } else {
-                mainApp.mostrarAviso("E-mail já cadastrado no sistema!", true);
+                mainApp.mostrarAviso("E-mail ja cadastrado no sistema!", true);
             }
         } else {
             if (alunoDAO.atualizar(alunoSelecionado.getId(), nome, email, senha, turma.getId())) {
@@ -381,7 +378,6 @@ public class AlunosView {
     }
 
     private void carregarDados() {
-        // PATCH: professor vê apenas alunos das suas turmas
         if (mainApp.isAdmin()) {
             dados.setAll(alunoDAO.listarTodos());
         } else {

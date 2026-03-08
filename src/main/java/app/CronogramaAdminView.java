@@ -25,7 +25,7 @@ import java.util.Map;
 public class CronogramaAdminView {
 
     private static final String[] DIAS =
-            {"SEGUNDA","TERÇA","QUARTA","QUINTA","SEXTA","SÁBADO"};
+            {"SEGUNDA","TERCA","QUARTA","QUINTA","SEXTA","SABADO"};
 
     private BorderPane view;
     private MainFX mainApp;
@@ -33,19 +33,16 @@ public class CronogramaAdminView {
     private ProfessorDAO  professorDAO  = new ProfessorDAO();
     private TurmaDAO      turmaDAO      = new TurmaDAO();
 
-    // Tabela agrupada
     private TableView<GrupoCronograma> tabela;
     private ObservableList<GrupoCronograma> todos  = FXCollections.observableArrayList();
     private FilteredList<GrupoCronograma>   filtro;
 
-    // Form
     private VBox       painelForm;
     private Label      lblFormTitulo;
     private ComboBox<Professor> cbProfessor;
     private ComboBox<Turma>     cbTurma;
     private ComboBox<String>    cbTipo;
 
-    // Multi-seleção de dias (checkboxes)
     private final Map<String, CheckBox> checkDias = new LinkedHashMap<>();
     private FlowPane painelCheckDias;
 
@@ -55,7 +52,6 @@ public class CronogramaAdminView {
     private Button     btnSalvar;
     private GrupoCronograma editandoGrupo;
 
-    // Filtro header
     private ComboBox<Professor> cbFiltroProf;
 
     public CronogramaAdminView(MainFX mainApp) {
@@ -64,15 +60,10 @@ public class CronogramaAdminView {
         carregar();
     }
 
-    // =========================================================================
-    // INTERFACE
-    // =========================================================================
-
     private void construirInterface() {
         view = new BorderPane();
 
-        // ── Cabeçalho ─────────────────────────────────────────────────────────
-        Label lbl = new Label("Cronograma — Administração");
+        Label lbl = new Label("Cronograma — Administracao");
         lbl.setStyle("-fx-font-size: 22px; -fx-font-weight: bold;");
 
         cbFiltroProf = new ComboBox<>();
@@ -87,7 +78,7 @@ public class CronogramaAdminView {
         Button btnAtualizar = new Button("Atualizar");
         btnAtualizar.setOnAction(e -> carregar());
 
-        Button btnNovo = new Button("+ Novo Horário");
+        Button btnNovo = new Button("+ Novo Horario");
         btnNovo.setStyle("-fx-background-color: #3182ce; -fx-text-fill: white; " +
                 "-fx-background-radius: 8; -fx-padding: 8 16; -fx-font-weight: bold;");
         btnNovo.setOnAction(e -> abrirFormNovo());
@@ -97,10 +88,9 @@ public class CronogramaAdminView {
         header.setAlignment(Pos.CENTER_LEFT);
         header.setPadding(new Insets(20, 20, 12, 20));
 
-        // ── Tabela agrupada ───────────────────────────────────────────────────
         tabela = new TableView<>();
         tabela.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
-        tabela.setPlaceholder(new Label("Nenhum horário cadastrado."));
+        tabela.setPlaceholder(new Label("Nenhum horario cadastrado."));
         VBox.setVgrow(tabela, Priority.ALWAYS);
 
         TableColumn<GrupoCronograma, String> colProf = new TableColumn<>("Professor");
@@ -117,11 +107,11 @@ public class CronogramaAdminView {
         colDias.setCellValueFactory(cd -> new SimpleStringProperty(cd.getValue().getDiasFormatados()));
         colDias.setMinWidth(140);
 
-        TableColumn<GrupoCronograma, String> colHor = new TableColumn<>("Horário");
+        TableColumn<GrupoCronograma, String> colHor = new TableColumn<>("Horario");
         colHor.setCellValueFactory(cd -> new SimpleStringProperty(cd.getValue().getHorarioFormatado()));
         colHor.setMaxWidth(120);
 
-        TableColumn<GrupoCronograma, String> colPeriodo = new TableColumn<>("Período");
+        TableColumn<GrupoCronograma, String> colPeriodo = new TableColumn<>("Periodo");
         colPeriodo.setCellValueFactory(cd -> new SimpleStringProperty(cd.getValue().getPeriodo()));
 
         tabela.getColumns().addAll(colProf, colTurma, colTipo, colDias, colHor, colPeriodo);
@@ -136,6 +126,7 @@ public class CronogramaAdminView {
             MenuItem miDel = new MenuItem("Excluir");
             miDel.setStyle("-fx-text-fill: red;");
             miEd.setOnAction(e -> { if (row.getItem() != null) abrirFormEditar(row.getItem()); });
+            // Sem confirmacao: exclui direto com toast
             miDel.setOnAction(e -> excluirGrupo(row.getItem()));
             cm.getItems().addAll(miEd, miDel);
             row.emptyProperty().addListener((o, w, n) -> row.setContextMenu(n ? null : cm));
@@ -145,7 +136,7 @@ public class CronogramaAdminView {
             return row;
         });
 
-        // ── Formulário lateral ────────────────────────────────────────────────
+        // ── Formulario lateral ────────────────────────────────────────────
         painelForm = new VBox(10);
         painelForm.setStyle("-fx-background-color: white; " +
                 "-fx-border-color: #e2e8f0; -fx-border-width: 0 0 0 1;");
@@ -157,7 +148,7 @@ public class CronogramaAdminView {
         btnFechar.setOnAction(e -> fecharForm());
         HBox hdrF = new HBox(btnFechar); hdrF.setAlignment(Pos.TOP_RIGHT);
 
-        lblFormTitulo = new Label("Novo Horário");
+        lblFormTitulo = new Label("Novo Horario");
         lblFormTitulo.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
 
         cbProfessor = new ComboBox<>();
@@ -175,11 +166,10 @@ public class CronogramaAdminView {
         cbTurma.setCellFactory(lv -> celulaTurma()); cbTurma.setButtonCell(celulaTurma());
 
         cbTipo = new ComboBox<>(FXCollections.observableArrayList(
-                "AULA", "REUNIÃO", "AULA_SUBSTITUTA"));
+                "AULA", "REUNIAO", "AULA_SUBSTITUTA"));
         cbTipo.setValue("AULA"); cbTipo.setMaxWidth(Double.MAX_VALUE);
         cbTipo.setOnAction(e -> atualizarVisibilidadeTipo());
 
-        // ── Checkboxes de dias ────────────────────────────────────────────────
         lblDiasSemana = new Label("Dias da Semana:");
         lblDiasSemana.setStyle("-fx-font-weight: bold; -fx-text-fill: #2d3748;");
 
@@ -196,9 +186,9 @@ public class CronogramaAdminView {
         Label lblDicaDias = new Label("Selecione um ou mais dias");
         lblDicaDias.setStyle("-fx-text-fill: #a0aec0; -fx-font-size: 11px;");
 
-        lblPeriodo = new Label("Período de vigência:");
+        lblPeriodo = new Label("Periodo de vigencia:");
         lblPeriodo.setStyle("-fx-font-weight: bold; -fx-text-fill: #2d3748;");
-        dpDataInicio = new DatePicker(); dpDataInicio.setPromptText("Data início");
+        dpDataInicio = new DatePicker(); dpDataInicio.setPromptText("Data inicio");
         dpDataInicio.setMaxWidth(Double.MAX_VALUE);
         dpDataFim    = new DatePicker(); dpDataFim.setPromptText("Data fim");
         dpDataFim.setMaxWidth(Double.MAX_VALUE);
@@ -208,10 +198,10 @@ public class CronogramaAdminView {
         dpDataEspecifica = new DatePicker(LocalDate.now());
         dpDataEspecifica.setMaxWidth(Double.MAX_VALUE);
 
-        txtInicio = new TextField(); txtInicio.setPromptText("Início: 08:00");
+        txtInicio = new TextField(); txtInicio.setPromptText("Inicio: 08:00");
         txtFim    = new TextField(); txtFim.setPromptText("Fim: 09:30");
 
-        Label lblDicaHor = new Label("Horário no formato HH:mm");
+        Label lblDicaHor = new Label("Horario no formato HH:mm");
         lblDicaHor.setStyle("-fx-text-fill: #a0aec0; -fx-font-size: 11px;");
 
         btnSalvar = new Button("Salvar");
@@ -228,8 +218,8 @@ public class CronogramaAdminView {
                 lblDiasSemana,              painelCheckDias, lblDicaDias,
                 lblPeriodo,                 dpDataInicio, dpDataFim,
                 lblDiaEspecifico,           dpDataEspecifica,
-                new Label("Horário Início:"), txtInicio,
-                new Label("Horário Fim:"),    txtFim,
+                new Label("Horario Inicio:"), txtInicio,
+                new Label("Horario Fim:"),    txtFim,
                 lblDicaHor,                 btnSalvar
         );
         conteudoForm.setPadding(new Insets(20));
@@ -243,7 +233,6 @@ public class CronogramaAdminView {
         painelForm.getChildren().add(scrollForm);
         atualizarVisibilidadeTipo();
 
-        // ── Montagem ──────────────────────────────────────────────────────────
         VBox centro = new VBox(header, tabela);
         VBox.setVgrow(tabela, Priority.ALWAYS);
         HBox main = new HBox(centro, painelForm);
@@ -265,10 +254,6 @@ public class CronogramaAdminView {
         dpDataEspecifica.setVisible(!isAula); dpDataEspecifica.setManaged(!isAula);
     }
 
-    // =========================================================================
-    // DADOS
-    // =========================================================================
-
     private void carregar() {
         todos.setAll(GrupoCronograma.agrupar(cronogramaDAO.listarTodos()));
         aplicarFiltro();
@@ -279,13 +264,9 @@ public class CronogramaAdminView {
         filtro.setPredicate(p == null ? g -> true : g -> p.getId().equals(g.getProfessorId()));
     }
 
-    // =========================================================================
-    // FORM — ABRIR
-    // =========================================================================
-
     private void abrirFormNovo() {
         editandoGrupo = null;
-        lblFormTitulo.setText("Novo Horário");
+        lblFormTitulo.setText("Novo Horario");
         btnSalvar.setText("Adicionar");
 
         cbProfessor.getItems().setAll(professorDAO.listarTodos());
@@ -307,8 +288,8 @@ public class CronogramaAdminView {
 
     private void abrirFormEditar(GrupoCronograma grupo) {
         editandoGrupo = grupo;
-        lblFormTitulo.setText("Editar Horário");
-        btnSalvar.setText("Salvar Alterações");
+        lblFormTitulo.setText("Editar Horario");
+        btnSalvar.setText("Salvar Alteracoes");
 
         cbProfessor.getItems().setAll(professorDAO.listarTodos());
         cbProfessor.getItems().stream()
@@ -344,10 +325,6 @@ public class CronogramaAdminView {
         mostrarForm();
     }
 
-    // =========================================================================
-    // SALVAR
-    // =========================================================================
-
     private void salvar() {
         Professor prof = cbProfessor.getValue();
         Turma turma    = cbTurma.getValue();
@@ -360,7 +337,7 @@ public class CronogramaAdminView {
             mainApp.mostrarAviso("Preencha todos os campos.", true); return;
         }
         if (!inicio.matches("\\d{2}:\\d{2}") || !fim.matches("\\d{2}:\\d{2}")) {
-            mainApp.mostrarAviso("Horário inválido. Use HH:mm.", true); return;
+            mainApp.mostrarAviso("Horario invalido. Use HH:mm.", true); return;
         }
 
         if ("AULA".equals(tipo)) salvarAula(prof, turma, inicio, fim);
@@ -375,13 +352,12 @@ public class CronogramaAdminView {
             mainApp.mostrarAviso("Selecione pelo menos um dia da semana.", true); return;
         }
         if (dpDataInicio.getValue() == null || dpDataFim.getValue() == null) {
-            mainApp.mostrarAviso("Defina o período de início e fim.", true); return;
+            mainApp.mostrarAviso("Defina o periodo de inicio e fim.", true); return;
         }
 
         LocalDate di = dpDataInicio.getValue();
         LocalDate df = dpDataFim.getValue();
 
-        // Edição: remove os slots antigos do grupo antes de recriar
         if (editandoGrupo != null) {
             editandoGrupo.getIds().forEach(cronogramaDAO::excluir);
         }
@@ -421,29 +397,17 @@ public class CronogramaAdminView {
         if (ok) { fecharForm(); carregar(); }
     }
 
-    // =========================================================================
-    // EXCLUIR
-    // =========================================================================
-
+    // Sem confirmacao: exclui direto com feedback via toast
     private void excluirGrupo(GrupoCronograma grupo) {
         if (grupo == null) return;
-        Alert alerta = new Alert(Alert.AlertType.CONFIRMATION,
-                "Excluir " + grupo.getDiasFormatados() + " de " + grupo.getTurmaNome() + "?",
-                ButtonType.YES, ButtonType.NO);
-        alerta.setHeaderText(null);
-        alerta.showAndWait().ifPresent(btn -> {
-            if (btn == ButtonType.YES) {
-                int excluidos = (int) grupo.getIds().stream()
-                        .filter(cronogramaDAO::excluir).count();
-                mainApp.mostrarAviso(excluidos + " dia(s) removido(s).", excluidos == 0);
-                carregar();
-            }
-        });
+        int excluidos = (int) grupo.getIds().stream()
+                .filter(cronogramaDAO::excluir).count();
+        mainApp.mostrarAviso(excluidos + " dia(s) removido(s).", excluidos == 0);
+        carregar();
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
-
     private void mostrarForm() { painelForm.setVisible(true); painelForm.setManaged(true); }
+
     private void fecharForm() {
         painelForm.setVisible(false); painelForm.setManaged(false);
         cbProfessor.setDisable(false); cbTurma.setDisable(false);
@@ -452,18 +416,18 @@ public class CronogramaAdminView {
 
     private String abreviarDia(String dia) {
         return switch (dia) {
-            case "SEGUNDA" -> "Seg"; case "TERÇA"  -> "Ter"; case "QUARTA" -> "Qua";
-            case "QUINTA"  -> "Qui"; case "SEXTA"  -> "Sex"; case "SÁBADO" -> "Sáb";
+            case "SEGUNDA" -> "Seg"; case "TERCA"  -> "Ter"; case "QUARTA" -> "Qua";
+            case "QUINTA"  -> "Qui"; case "SEXTA"  -> "Sex"; case "SABADO" -> "Sab";
             default -> dia;
         };
     }
 
     private String diaSemanaPortugues(DayOfWeek dow) {
         return switch (dow) {
-            case MONDAY    -> "SEGUNDA"; case TUESDAY   -> "TERÇA";
+            case MONDAY    -> "SEGUNDA"; case TUESDAY   -> "TERCA";
             case WEDNESDAY -> "QUARTA";  case THURSDAY  -> "QUINTA";
-            case FRIDAY    -> "SEXTA";   case SATURDAY  -> "SÁBADO";
-            default -> "DOMINGO";
+            case FRIDAY    -> "SEXTA";   case SATURDAY  -> "SABADO";
+            default        -> "DOMINGO";
         };
     }
 

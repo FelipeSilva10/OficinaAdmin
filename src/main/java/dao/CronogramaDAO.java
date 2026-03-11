@@ -8,14 +8,8 @@ import java.util.List;
 
 public class CronogramaDAO {
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // INSERT / UPDATE / DELETE
-    // ─────────────────────────────────────────────────────────────────────────
+    // ── INSERT / UPDATE / DELETE ──────────────────────────────────────────────
 
-    /**
-     * Admin cria um slot recorrente (AULA) com período definido.
-     * tipo = 'AULA', criado_por = 'ADMIN'
-     */
     public boolean inserirAdmin(String professorId, String turmaId, String diaSemana,
                                 String horarioInicio, String horarioFim,
                                 LocalDate dataInicio, LocalDate dataFim) {
@@ -23,10 +17,6 @@ public class CronogramaDAO {
                 "AULA", dataInicio, dataFim, "ADMIN");
     }
 
-    /**
-     * Admin ou professor cria um evento ocasional (REUNIÃO ou AULA_SUBSTITUTA).
-     * O diaSemana é derivado da data específica pelo chamador.
-     */
     public boolean inserirOcasional(String professorId, String turmaId, String diaSemana,
                                     String horarioInicio, String horarioFim,
                                     String tipo, LocalDate dataEspecifica, String criadoPor) {
@@ -101,23 +91,13 @@ public class CronogramaDAO {
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // LISTAGENS
-    // ─────────────────────────────────────────────────────────────────────────
+    // ── LISTAGENS ─────────────────────────────────────────────────────────────
 
-    /** Todos os slots do professor (para a view do cronograma do professor). */
     public List<CronogramaAula> listarPorProfessor(String professorId) {
-        String sql = BASE_SELECT +
-                "WHERE ca.professor_id = ?::uuid " +
-                ORDER_DIA;
-        return buscar(sql, List.of(professorId));
+        return buscar(BASE_SELECT + "WHERE ca.professor_id = ?::uuid " + ORDER_DIA,
+                List.of(professorId));
     }
 
-    /**
-     * Slots ativos para o professor em determinado dia e data.
-     * Respeita data_inicio e data_fim do cronograma.
-     * Usado pela Chamada inteligente.
-     */
     public List<CronogramaAula> listarAtivosParaDia(String professorId,
                                                     String diaSemana,
                                                     LocalDate data) {
@@ -144,25 +124,19 @@ public class CronogramaDAO {
         return lista;
     }
 
-    /** Todos os slots de todos os professores — para a view admin. */
     public List<CronogramaAula> listarTodos() {
-        String sql = BASE_SELECT + ORDER_DIA;
-        return buscar(sql, List.of());
+        return buscar(BASE_SELECT + ORDER_DIA, List.of());
     }
 
-    /** Slots de um professor específico — para a view admin filtrada. */
     public List<CronogramaAula> listarTodosPorProfessor(String professorId) {
         return listarPorProfessor(professorId);
     }
 
-    /** Mantém compatibilidade com chamadas antigas via (professorId, diaSemana). */
     public List<CronogramaAula> listarPorProfessorEDia(String professorId, String diaSemana) {
         return listarAtivosParaDia(professorId, diaSemana, LocalDate.now());
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // HELPERS
-    // ─────────────────────────────────────────────────────────────────────────
+    // ── HELPERS ───────────────────────────────────────────────────────────────
 
     private static final String BASE_SELECT = """
         SELECT ca.id, ca.professor_id, pf.nome AS professor_nome,
@@ -178,6 +152,7 @@ public class CronogramaDAO {
         JOIN perfis pf ON pf.id = ca.professor_id
         """;
 
+    // Com acento — exatamente como estão armazenados no banco
     private static final String ORDER_DIA = """
         ORDER BY
           CASE ca.dia_semana

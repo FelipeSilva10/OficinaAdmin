@@ -11,9 +11,9 @@ public class CronogramaAula {
     private String horarioInicio;
     private String horarioFim;
     private String tipo;        // AULA | REUNIÃO | AULA_SUBSTITUTA
-    private String dataInicio;  // yyyy-MM-dd ou null
-    private String dataFim;     // yyyy-MM-dd ou null
-    private String criadoPor;   // ADMIN | PROFESSOR
+    private String dataInicio;
+    private String dataFim;
+    private String criadoPor;
 
     public CronogramaAula(String id, String professorId, String professorNome,
                           String turmaId, String turmaNome, String diaSemana,
@@ -27,13 +27,12 @@ public class CronogramaAula {
         this.diaSemana     = diaSemana;
         this.horarioInicio = horarioInicio;
         this.horarioFim    = horarioFim;
-        this.tipo          = tipo          != null ? tipo      : "AULA";
+        this.tipo          = tipo      != null ? tipo      : "AULA";
         this.dataInicio    = dataInicio;
         this.dataFim       = dataFim;
-        this.criadoPor     = criadoPor     != null ? criadoPor : "ADMIN";
+        this.criadoPor     = criadoPor != null ? criadoPor : "ADMIN";
     }
 
-    /** Construtor de compatibilidade (sem novos campos — tipo=AULA, criadoPor=ADMIN) */
     public CronogramaAula(String id, String professorId, String turmaId,
                           String turmaNome, String diaSemana,
                           String horarioInicio, String horarioFim) {
@@ -54,6 +53,7 @@ public class CronogramaAula {
     public String getDataFim()       { return dataFim; }
     public String getCriadoPor()     { return criadoPor; }
 
+    // Com acento — alinhado com o check constraint do banco
     public boolean isOcasional() {
         return "REUNIÃO".equals(tipo) || "AULA_SUBSTITUTA".equals(tipo);
     }
@@ -65,12 +65,8 @@ public class CronogramaAula {
         return ini + " → " + fim;
     }
 
-    /** HH:mm – HH:mm */
-    public String getHorarioFormatado() {
-        return horarioInicio + " – " + horarioFim;
-    }
+    public String getHorarioFormatado() { return horarioInicio + " – " + horarioFim; }
 
-    /** Emoji + nome do tipo */
     public String getTipoLabel() {
         return switch (tipo) {
             case "REUNIÃO"          -> "📋 Reunião";
@@ -80,7 +76,6 @@ public class CronogramaAula {
     }
 
     private static String formatarData(String iso) {
-        // "2026-04-01" → "01/04/2026"
         try {
             String[] p = iso.split("-");
             return p[2] + "/" + p[1] + "/" + p[0];

@@ -342,7 +342,8 @@ public class TurmasView {
     }
 
     private void carregarEscolas() {
-        cbEscolasFiltro.getItems().setAll(escolasDAO.listarTodas());
+        cbEscolasFiltro.getItems().add(null);
+        cbEscolasFiltro.getItems().addAll(escolasDAO.listarTodas());
     }
 
     private void carregarTurmas() {

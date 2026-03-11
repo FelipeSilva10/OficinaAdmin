@@ -24,8 +24,9 @@ import java.util.Map;
 
 public class CronogramaAdminView {
 
+    // FIX: com acento — exatamente como o banco exige no check constraint
     private static final String[] DIAS =
-            {"SEGUNDA","TERCA","QUARTA","QUINTA","SEXTA","SABADO"};
+            {"SEGUNDA", "TERÇA", "QUARTA", "QUINTA", "SEXTA", "SÁBADO"};
 
     private BorderPane view;
     private MainFX mainApp;
@@ -126,7 +127,6 @@ public class CronogramaAdminView {
             MenuItem miDel = new MenuItem("Excluir");
             miDel.setStyle("-fx-text-fill: red;");
             miEd.setOnAction(e -> { if (row.getItem() != null) abrirFormEditar(row.getItem()); });
-            // Sem confirmacao: exclui direto com toast
             miDel.setOnAction(e -> excluirGrupo(row.getItem()));
             cm.getItems().addAll(miEd, miDel);
             row.emptyProperty().addListener((o, w, n) -> row.setContextMenu(n ? null : cm));
@@ -166,7 +166,7 @@ public class CronogramaAdminView {
         cbTurma.setCellFactory(lv -> celulaTurma()); cbTurma.setButtonCell(celulaTurma());
 
         cbTipo = new ComboBox<>(FXCollections.observableArrayList(
-                "AULA", "REUNIAO", "AULA_SUBSTITUTA"));
+                "AULA", "REUNIÃO", "AULA_SUBSTITUTA"));
         cbTipo.setValue("AULA"); cbTipo.setMaxWidth(Double.MAX_VALUE);
         cbTipo.setOnAction(e -> atualizarVisibilidadeTipo());
 
@@ -397,7 +397,6 @@ public class CronogramaAdminView {
         if (ok) { fecharForm(); carregar(); }
     }
 
-    // Sem confirmacao: exclui direto com feedback via toast
     private void excluirGrupo(GrupoCronograma grupo) {
         if (grupo == null) return;
         int excluidos = (int) grupo.getIds().stream()
@@ -414,19 +413,21 @@ public class CronogramaAdminView {
         tabela.getSelectionModel().clearSelection(); editandoGrupo = null;
     }
 
+    // FIX: com acento — alinhado ao check constraint do banco
     private String abreviarDia(String dia) {
         return switch (dia) {
-            case "SEGUNDA" -> "Seg"; case "TERCA"  -> "Ter"; case "QUARTA" -> "Qua";
-            case "QUINTA"  -> "Qui"; case "SEXTA"  -> "Sex"; case "SABADO" -> "Sab";
+            case "SEGUNDA" -> "Seg"; case "TERÇA"  -> "Ter"; case "QUARTA" -> "Qua";
+            case "QUINTA"  -> "Qui"; case "SEXTA"  -> "Sex"; case "SÁBADO" -> "Sáb";
             default -> dia;
         };
     }
 
+    // FIX: com acento — alinhado ao check constraint do banco
     private String diaSemanaPortugues(DayOfWeek dow) {
         return switch (dow) {
-            case MONDAY    -> "SEGUNDA"; case TUESDAY   -> "TERCA";
+            case MONDAY    -> "SEGUNDA"; case TUESDAY   -> "TERÇA";
             case WEDNESDAY -> "QUARTA";  case THURSDAY  -> "QUINTA";
-            case FRIDAY    -> "SEXTA";   case SATURDAY  -> "SABADO";
+            case FRIDAY    -> "SEXTA";   case SATURDAY  -> "SÁBADO";
             default        -> "DOMINGO";
         };
     }

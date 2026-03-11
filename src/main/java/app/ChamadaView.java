@@ -17,11 +17,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Tela de Chamada — maquina de estados explicita.
+ * Tela de Chamada — máquina de estados explícita.
  *
  *  PREVIEW     → cards de turmas + banner aula ativa (se houver)
- *  FORM        → seletor turma/data + tabela de presenca (nova chamada)
- *  HISTORICO   → lista de chamadas ja realizadas, com opcao de excluir
+ *  FORM        → seletor turma/data + tabela de presença (nova chamada)
+ *  HISTORICO   → lista de chamadas + painel lateral de detalhe e edição
  */
 public class ChamadaView {
 
@@ -29,7 +29,7 @@ public class ChamadaView {
     private Tela telaAtual = Tela.PREVIEW;
 
     private BorderPane view;
-    private MainFX mainApp;
+    private MainFX     mainApp;
 
     private final ChamadaDAO    chamadaDAO    = new ChamadaDAO();
     private final CronogramaDAO cronogramaDAO = new CronogramaDAO();
@@ -38,15 +38,18 @@ public class ChamadaView {
 
     private static final DateTimeFormatter FMT_BR = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
-    private VBox painelPreview;
-    private VBox painelForm;
-    private VBox painelHistorico;
+    // Painéis de estado
+    private VBox      painelPreview;
+    private VBox      painelForm;
+    private VBox      painelHistorico;
     private StackPane conteudo;
 
-    private VBox   bannerAulaAtiva;
-    private Label  lblAulaAtiva;
+    // ── Preview ───────────────────────────────────────────────────────────────
+    private VBox  bannerAulaAtiva;
+    private Label lblAulaAtiva;
     private CronogramaAula slotAtual;
 
+    // ── Form ──────────────────────────────────────────────────────────────────
     private ComboBox<Turma> cbTurma;
     private DatePicker      dpData;
     private Label           lblCronInfo;
@@ -56,9 +59,19 @@ public class ChamadaView {
     private Button btnSalvar;
     private Label  lblTituloForm;
 
-    private TableView<Chamada> tabelaHistorico;
-    private ObservableList<Chamada> historico = FXCollections.observableArrayList();
+    // ── Histórico ─────────────────────────────────────────────────────────────
+    private TableView<Chamada>             tabelaHistorico;
+    private ObservableList<Chamada>        historico = FXCollections.observableArrayList();
 
+    /** Painel lateral de detalhe/edição de chamada histórica */
+    private VBox   painelDetalhe;
+    private Label  lblDetalheTitulo;
+    private TableView<ChamadaPresenca> tabelaDetalhe;
+    private ObservableList<ChamadaPresenca> presencasDetalhe = FXCollections.observableArrayList();
+    private Label  lblResumoDetalhe;
+    private Chamada chamadaDetalhada;
+
+    // Tabs
     private Button tabBtnPreview, tabBtnHistorico;
 
     public ChamadaView(MainFX mainApp) {
@@ -68,7 +81,7 @@ public class ChamadaView {
     }
 
     // =========================================================================
-    // CONSTRUCAO
+    // CONSTRUÇÃO
     // =========================================================================
 
     private void construirInterface() {
@@ -78,7 +91,7 @@ public class ChamadaView {
         lblTitulo.setStyle("-fx-font-size: 22px; -fx-font-weight: bold;");
 
         tabBtnPreview   = tabBtn("Turmas");
-        tabBtnHistorico = tabBtn("Historico");
+        tabBtnHistorico = tabBtn("Histórico");
         tabBtnPreview.setOnAction(e -> ir(Tela.PREVIEW));
         tabBtnHistorico.setOnAction(e -> ir(Tela.HISTORICO));
 
@@ -157,7 +170,6 @@ public class ChamadaView {
         Button btnVoltar = new Button("← Voltar");
         btnVoltar.setStyle("-fx-background-color: transparent; -fx-text-fill: #3182ce; " +
                 "-fx-font-weight: bold; -fx-cursor: hand; -fx-font-size: 13px;");
-        // Sem confirmacao: volta direto descartando
         btnVoltar.setOnAction(e -> { presencas.clear(); ir(Tela.PREVIEW); });
 
         lblTituloForm = new Label("Nova Chamada");
@@ -240,14 +252,14 @@ public class ChamadaView {
         VBox.setVgrow(corpoForm, Priority.ALWAYS);
     }
 
-    // ── HISTORICO ─────────────────────────────────────────────────────────────
+    // ── HISTÓRICO ─────────────────────────────────────────────────────────────
 
     private void construirPainelHistorico() {
         painelHistorico = new VBox(0);
         painelHistorico.setVisible(false);
         VBox.setVgrow(painelHistorico, Priority.ALWAYS);
 
-        Label lblSub = new Label("Chamadas realizadas (mais recentes primeiro)");
+        Label lblSub = new Label("Clique em uma chamada para ver as presenças e editar.");
         lblSub.setStyle("-fx-text-fill: #718096; -fx-font-size: 13px;");
         HBox subH = new HBox(lblSub);
         subH.setPadding(new Insets(12, 20, 8, 20));
@@ -266,12 +278,12 @@ public class ChamadaView {
         TableColumn<Chamada, String> cTurma = new TableColumn<>("Turma");
         cTurma.setCellValueFactory(cd -> new SimpleStringProperty(cd.getValue().getTurmaNome()));
 
-        TableColumn<Chamada, String> cHor = new TableColumn<>("Horario");
+        TableColumn<Chamada, String> cHor = new TableColumn<>("Horário");
         cHor.setCellValueFactory(cd -> new SimpleStringProperty(
                 cd.getValue().getHorarioInicio() + " – " + cd.getValue().getHorarioFim()));
         cHor.setMaxWidth(130);
 
-        TableColumn<Chamada, String> cPres = new TableColumn<>("Presenca");
+        TableColumn<Chamada, String> cPres = new TableColumn<>("Presença");
         cPres.setCellValueFactory(cd -> {
             Chamada c = cd.getValue();
             return new SimpleStringProperty(
@@ -282,14 +294,13 @@ public class ChamadaView {
         });
         cPres.setMaxWidth(140);
 
-        TableColumn<Chamada, Void> cAcoes = new TableColumn<>("Acoes");
+        TableColumn<Chamada, Void> cAcoes = new TableColumn<>("Ações");
         cAcoes.setMaxWidth(90); cAcoes.setMinWidth(90);
         cAcoes.setCellFactory(col -> new TableCell<>() {
             private final Button btnDel = new Button("Apagar");
             {
                 btnDel.setStyle("-fx-background-color: transparent; -fx-text-fill: #e53e3e; " +
                         "-fx-font-size: 11px; -fx-cursor: hand;");
-                // Sem confirmacao: apaga direto com feedback via toast
                 btnDel.setOnAction(e -> {
                     Chamada c = getTableView().getItems().get(getIndex());
                     excluirChamada(c);
@@ -302,11 +313,101 @@ public class ChamadaView {
         });
 
         tabelaHistorico.getColumns().addAll(cData, cTurma, cHor, cPres, cAcoes);
-        painelHistorico.getChildren().addAll(subH, tabelaHistorico);
+
+        // Clicar abre painel de detalhe
+        tabelaHistorico.getSelectionModel().selectedItemProperty().addListener(
+                (obs, ov, nv) -> {
+                    if (nv != null) abrirDetalhe(nv);
+                }
+        );
+
+        // ── Painel de detalhe lateral ──────────────────────────────────────
+        painelDetalhe = new VBox(0);
+        painelDetalhe.setStyle("-fx-background-color: white; " +
+                "-fx-border-color: #e2e8f0; -fx-border-width: 0 0 0 1;");
+        painelDetalhe.setMinWidth(320);
+        painelDetalhe.setMaxWidth(380);
+        painelDetalhe.setVisible(false);
+        painelDetalhe.setManaged(false);
+
+        // Header do painel
+        lblDetalheTitulo = new Label("Detalhes da Chamada");
+        lblDetalheTitulo.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #1a202c;");
+        lblDetalheTitulo.setWrapText(true);
+
+        Button btnFecharDet = new Button("Fechar");
+        btnFecharDet.setStyle("-fx-background-color: transparent; -fx-text-fill: #718096; -fx-cursor: hand;");
+        btnFecharDet.setOnAction(e -> fecharDetalhe());
+
+        Region spDet = new Region(); HBox.setHgrow(spDet, Priority.ALWAYS);
+        HBox hdrDet = new HBox(10, lblDetalheTitulo, spDet, btnFecharDet);
+        hdrDet.setAlignment(Pos.CENTER_LEFT);
+        hdrDet.setPadding(new Insets(14, 14, 10, 16));
+        hdrDet.setStyle("-fx-border-color: #e2e8f0; -fx-border-width: 0 0 1 0;");
+
+        // Tabela de presenças
+        tabelaDetalhe = new TableView<>();
+        tabelaDetalhe.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+        tabelaDetalhe.setEditable(true);
+        tabelaDetalhe.setItems(presencasDetalhe);
+        tabelaDetalhe.setPlaceholder(new Label("Nenhum aluno."));
+        VBox.setVgrow(tabelaDetalhe, Priority.ALWAYS);
+
+        TableColumn<ChamadaPresenca, String> cdNome = new TableColumn<>("Aluno");
+        cdNome.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getAlunoNome()));
+
+        TableColumn<ChamadaPresenca, Boolean> cdPres = new TableColumn<>("Presente");
+        cdPres.setCellValueFactory(c -> c.getValue().presenteProperty());
+        cdPres.setCellFactory(CheckBoxTableCell.forTableColumn(cdPres));
+        cdPres.setEditable(true);
+        cdPres.setMaxWidth(95); cdPres.setMinWidth(95);
+        tabelaDetalhe.getColumns().addAll(cdNome, cdPres);
+
+        // Atalhos de edição
+        Button btnTodosDet  = atalhoBtn("Todos ✓");
+        Button btnNenhumDet = atalhoBtn("Todos ✗");
+        btnTodosDet.setOnAction(e  -> presencasDetalhe.forEach(p -> p.setPresente(true)));
+        btnNenhumDet.setOnAction(e -> presencasDetalhe.forEach(p -> p.setPresente(false)));
+
+        lblResumoDetalhe = new Label();
+        lblResumoDetalhe.setStyle("-fx-text-fill: #4a5568; -fx-font-size: 12px;");
+        presencasDetalhe.addListener(
+                (javafx.collections.ListChangeListener<ChamadaPresenca>) c -> atualizarResumoDetalhe());
+
+        Region spAta = new Region(); HBox.setHgrow(spAta, Priority.ALWAYS);
+        HBox atalhosD = new HBox(6, btnTodosDet, btnNenhumDet, spAta, lblResumoDetalhe);
+        atalhosD.setPadding(new Insets(8, 12, 6, 12));
+        atalhosD.setAlignment(Pos.CENTER_LEFT);
+
+        // Botão de salvar edições
+        Button btnSalvarDet = new Button("Salvar Alterações");
+        btnSalvarDet.setStyle("-fx-background-color: #3182ce; -fx-text-fill: white; " +
+                "-fx-background-radius: 8; -fx-padding: 8 16; -fx-font-weight: bold;");
+        btnSalvarDet.setMaxWidth(Double.MAX_VALUE);
+        btnSalvarDet.setOnAction(e -> salvarEdicaoPresencas());
+
+        VBox rodapeDet = new VBox(8, btnSalvarDet);
+        rodapeDet.setPadding(new Insets(10, 14, 14, 14));
+        rodapeDet.setStyle("-fx-border-color: #e2e8f0; -fx-border-width: 1 0 0 0;");
+
+        VBox corpoDet = new VBox(atalhosD, tabelaDetalhe, rodapeDet);
+        VBox.setVgrow(tabelaDetalhe, Priority.ALWAYS);
+
+        painelDetalhe.getChildren().addAll(hdrDet, corpoDet);
+        VBox.setVgrow(corpoDet, Priority.ALWAYS);
+
+        // Montar
+        VBox listCol = new VBox(subH, tabelaHistorico);
+        VBox.setVgrow(tabelaHistorico, Priority.ALWAYS);
+        HBox splitH = new HBox(listCol, painelDetalhe);
+        HBox.setHgrow(listCol, Priority.ALWAYS);
+        VBox.setVgrow(splitH, Priority.ALWAYS);
+
+        painelHistorico.getChildren().add(splitH);
     }
 
     // =========================================================================
-    // MAQUINA DE ESTADOS
+    // MÁQUINA DE ESTADOS
     // =========================================================================
 
     private void ir(Tela tela) {
@@ -333,7 +434,6 @@ public class ChamadaView {
 
     private void carregarPreview() {
         String profId = mainApp.getSessao().getId();
-
         LocalDate hoje  = LocalDate.now();
         LocalTime agora = LocalTime.now();
         String diaSem   = diaSemanaPortugues(hoje.getDayOfWeek());
@@ -367,8 +467,8 @@ public class ChamadaView {
 
         if (!aulaAtiva) {
             Label lblSub = new Label(resumos.isEmpty()
-                    ? "Nenhuma turma atribuida."
-                    : "Visao geral das turmas:");
+                    ? "Nenhuma turma atribuída."
+                    : "Visão geral das turmas:");
             lblSub.setStyle("-fx-text-fill: #718096; -fx-font-size: 13px;");
             areaCards.getChildren().add(lblSub);
         }
@@ -394,16 +494,14 @@ public class ChamadaView {
         Label lEscola = new Label(r.getEscolaNome());
         lEscola.setStyle("-fx-text-fill: #718096; -fx-font-size: 12px;");
 
-        Separator sep = new Separator();
-
         Label lChamadas = new Label(r.getTotalChamadas() + " chamadas registradas");
         lChamadas.setStyle("-fx-font-size: 12px; -fx-text-fill: #4a5568;");
 
-        Label lUltima = new Label("Ultima: " + r.getUltimaChamadaFormatada());
+        Label lUltima = new Label("Última: " + r.getUltimaChamadaFormatada());
         lUltima.setStyle("-fx-font-size: 12px; -fx-text-fill: #4a5568;");
 
         double pct = r.getMediaPresenca();
-        Label lPct = new Label("Presenca media: " + r.getMediaPresencaFormatada());
+        Label lPct = new Label("Presença média: " + r.getMediaPresencaFormatada());
         lPct.setStyle("-fx-font-size: 12px; -fx-text-fill: #4a5568;");
 
         ProgressBar bar = new ProgressBar(pct / 100.0);
@@ -419,7 +517,14 @@ public class ChamadaView {
             abrirFormManual(turma, LocalDate.now());
         });
 
-        card.getChildren().addAll(lNome, lEscola, sep, lChamadas, lUltima, lPct, bar, btnChamar);
+        Button btnHistorico = new Button("Ver Histórico");
+        btnHistorico.setStyle("-fx-background-color: #e2e8f0; -fx-text-fill: #2d3748; " +
+                "-fx-background-radius: 6; -fx-padding: 6 12; -fx-font-size: 12px;");
+        btnHistorico.setMaxWidth(Double.MAX_VALUE);
+        btnHistorico.setOnAction(e -> ir(Tela.HISTORICO));
+
+        card.getChildren().addAll(lNome, lEscola, new Separator(),
+                lChamadas, lUltima, lPct, bar, btnChamar, btnHistorico);
         return card;
     }
 
@@ -466,8 +571,8 @@ public class ChamadaView {
         String profId = mainApp.getSessao().getId();
 
         if (chamadaDAO.chamadaJaExiste(profId, turma.getId(), data)) {
-            mainApp.mostrarAviso("Chamada ja registrada para " + turma.getNome()
-                    + " em " + data.format(FMT_BR) + ". Use o Historico para gerenciar.", true);
+            mainApp.mostrarAviso("Chamada já registrada para " + turma.getNome()
+                    + " em " + data.format(FMT_BR) + ". Use o Histórico para gerenciar.", true);
             return;
         }
 
@@ -503,8 +608,7 @@ public class ChamadaView {
     private void atualizarResumo() {
         long pres  = presencas.stream().filter(ChamadaPresenca::isPresente).count();
         long total = presencas.size();
-        lblResumo.setText("Presentes: " + pres + " / " + total
-                + "   Ausentes: " + (total - pres));
+        lblResumo.setText("Presentes: " + pres + " / " + total + "   Ausentes: " + (total - pres));
     }
 
     private void salvar() {
@@ -531,11 +635,55 @@ public class ChamadaView {
     }
 
     // =========================================================================
-    // HISTORICO
+    // HISTÓRICO — detalhe e edição
     // =========================================================================
 
     private void carregarHistorico() {
         historico.setAll(chamadaDAO.listarPorProfessor(mainApp.getSessao().getId()));
+        fecharDetalhe();
+    }
+
+    private void abrirDetalhe(Chamada chamada) {
+        chamadaDetalhada = chamada;
+
+        lblDetalheTitulo.setText(
+                chamada.getDataAula().format(FMT_BR) + "  —  " + chamada.getTurmaNome() +
+                        "\n" + chamada.getHorarioInicio() + " – " + chamada.getHorarioFim());
+
+        List<ChamadaPresenca> lista = chamadaDAO.listarPresencas(chamada.getId());
+        presencasDetalhe.setAll(lista);
+        presencasDetalhe.forEach(p -> p.presenteProperty()
+                .addListener((o, ov, nv) -> atualizarResumoDetalhe()));
+        atualizarResumoDetalhe();
+
+        painelDetalhe.setVisible(true);
+        painelDetalhe.setManaged(true);
+    }
+
+    private void fecharDetalhe() {
+        painelDetalhe.setVisible(false);
+        painelDetalhe.setManaged(false);
+        presencasDetalhe.clear();
+        chamadaDetalhada = null;
+        tabelaHistorico.getSelectionModel().clearSelection();
+    }
+
+    private void atualizarResumoDetalhe() {
+        long pres  = presencasDetalhe.stream().filter(ChamadaPresenca::isPresente).count();
+        long total = presencasDetalhe.size();
+        lblResumoDetalhe.setText("Presentes: " + pres + "/" + total);
+    }
+
+    private void salvarEdicaoPresencas() {
+        if (chamadaDetalhada == null || presencasDetalhe.isEmpty()) return;
+
+        boolean ok = chamadaDAO.atualizarPresencas(new ArrayList<>(presencasDetalhe));
+        if (ok) {
+            mainApp.mostrarAviso("Presenças atualizadas!", false);
+            carregarHistorico(); // recarrega totais na tabela
+        } else {
+            mainApp.mostrarAviso("Erro ao atualizar presenças.", true);
+        }
     }
 
     private void excluirChamada(Chamada c) {

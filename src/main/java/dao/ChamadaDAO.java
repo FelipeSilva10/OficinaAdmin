@@ -96,6 +96,40 @@ public class ChamadaDAO {
             return false;
         }
     }
+    // ─────────────────────────────────────────────────────────────────────────────
+// ADICIONE ESTE MÉTODO à classe ChamadaDAO existente
+// (dentro do bloco "CHAMADAS", após excluirChamada)
+// ─────────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Atualiza o status de presença de cada aluno numa chamada já salva.
+     * Cada ChamadaPresenca deve ter seu id (UUID) preenchido — como vem de listarPresencas().
+     */
+    public boolean atualizarPresencas(List<core.ChamadaPresenca> presencas) {
+        String sql = "UPDATE chamada_presencas SET presente = ? WHERE id = ?::uuid";
+        try (java.sql.Connection conn = ConexaoBD.conectar();
+             java.sql.PreparedStatement stmt = conn.prepareStatement(sql)) {
+            conn.setAutoCommit(false);
+            try {
+                for (core.ChamadaPresenca p : presencas) {
+                    if (p.getId() == null) continue; // segurança
+                    stmt.setBoolean(1, p.isPresente());
+                    stmt.setString(2, p.getId());
+                    stmt.addBatch();
+                }
+                stmt.executeBatch();
+                conn.commit();
+                return true;
+            } catch (java.sql.SQLException e) {
+                conn.rollback();
+                System.err.println("Erro ao atualizar presenças (rollback): " + e.getMessage());
+                return false;
+            }
+        } catch (java.sql.SQLException e) {
+            System.err.println("Erro de conexão: " + e.getMessage());
+            return false;
+        }
+    }
 
     public boolean chamadaJaExiste(String professorId, String turmaId, LocalDate data) {
         String sql = """

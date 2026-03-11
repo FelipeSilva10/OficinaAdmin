@@ -29,6 +29,7 @@ public class MainFX {
 
     private ProfessoresView         professoresView;
     private CronogramaAdminView     cronogramaAdminView;
+    private DiarioView              diarioView;
     private RegistroHorasAdminView  registroHorasAdminView;
 
     private CronogramaView          cronogramaView;
@@ -105,6 +106,10 @@ public class MainFX {
 
                     updateMessage("Preparando chamada...");
                     Platform.runLater(() -> chamadaView = new ChamadaView(MainFX.this));
+                    Thread.sleep(70);
+
+                    updateMessage("Carregando diário de aulas...");
+                    Platform.runLater(() -> diarioView = new DiarioView(MainFX.this));
                     Thread.sleep(70);
 
                     updateMessage("Carregando registro de horas...");
@@ -201,14 +206,8 @@ public class MainFX {
         sidebar.setPrefWidth(220);
         sidebar.setStyle("-fx-background-color:#1a202c;");
 
-        Button btnEscolas = navBtn("Escolas");
-        Button btnTurmas  = navBtn("Turmas");
-        Button btnAlunos  = navBtn("Alunos");
-        btnEscolas.setOnAction(e -> { ativar(btnEscolas); abrirEscolas(); });
-        btnTurmas.setOnAction(e  -> { ativar(btnTurmas);  navegarPara(turmasView.getView(), "Turmas"); });
-        btnAlunos.setOnAction(e  -> { ativar(btnAlunos);  navegarPara(alunosView.getView(), "Alunos"); });
-
-        Region spacer = new Region(); VBox.setVgrow(spacer, Priority.ALWAYS);
+        Region spacer = new Region();
+        VBox.setVgrow(spacer, Priority.ALWAYS);
 
         Button btnSair = navBtn("Sair");
         btnSair.setStyle(navStyle(false) + "-fx-text-fill:#fc8181;");
@@ -217,10 +216,17 @@ public class MainFX {
         btnSair.setOnAction(e -> sair());
 
         if (isAdmin()) {
+            // ── Botões exclusivos do bloco admin ─────────────────────────────
+            Button btnEscolas    = navBtn("Escolas");
+            Button btnTurmas     = navBtn("Turmas");
+            Button btnAlunos     = navBtn("Alunos");
             Button btnProfessores    = navBtn("Professores");
             Button btnCronograma     = navBtn("Cronograma");
             Button btnRegHoras       = navBtn("Horas e Pagamento");
 
+            btnEscolas.setOnAction(e    -> { ativar(btnEscolas);    abrirEscolas(); });
+            btnTurmas.setOnAction(e     -> { ativar(btnTurmas);     navegarPara(turmasView.getView(), "Turmas"); });
+            btnAlunos.setOnAction(e     -> { ativar(btnAlunos);     navegarPara(alunosView.getView(), "Alunos"); });
             btnProfessores.setOnAction(e -> { ativar(btnProfessores); navegarPara(professoresView.getView(), "Professores"); });
             btnCronograma.setOnAction(e  -> { ativar(btnCronograma);  navegarPara(cronogramaAdminView.getView(), "Cronograma"); });
             btnRegHoras.setOnAction(e    -> { ativar(btnRegHoras);    navegarPara(registroHorasAdminView.getView(), "Horas e Pagamento"); });
@@ -231,16 +237,26 @@ public class MainFX {
                     new Separator(),
                     secaoLabel("PROFESSOR"),
                     btnCronograma, btnRegHoras,
-                    spacer, btnSair);
+                    spacer, btnSair
+            );
             ativar(btnEscolas);
 
         } else {
+            // ── Botões exclusivos do bloco professor ─────────────────────────
+            Button btnEscolas       = navBtn("Escolas");
+            Button btnTurmas        = navBtn("Turmas");
+            Button btnAlunos        = navBtn("Alunos");
             Button btnCronograma    = navBtn("Cronograma");
             Button btnChamada       = navBtn("Chamada");
+            Button btnDiario        = navBtn("Diário de Aulas");
             Button btnRegistroHoras = navBtn("Registro de Horas");
 
+            btnEscolas.setOnAction(e       -> { ativar(btnEscolas);       abrirEscolas(); });
+            btnTurmas.setOnAction(e        -> { ativar(btnTurmas);        navegarPara(turmasView.getView(), "Turmas"); });
+            btnAlunos.setOnAction(e        -> { ativar(btnAlunos);        navegarPara(alunosView.getView(), "Alunos"); });
             btnCronograma.setOnAction(e    -> { ativar(btnCronograma);    navegarPara(cronogramaView.getView(), "Cronograma"); });
             btnChamada.setOnAction(e       -> { ativar(btnChamada);       navegarPara(chamadaView.getView(), "Chamada"); });
+            btnDiario.setOnAction(e        -> { ativar(btnDiario);        navegarPara(diarioView.getView(), "Diário de Aulas"); });
             btnRegistroHoras.setOnAction(e -> { ativar(btnRegistroHoras); navegarPara(registroHorasView.getView(), "Registro de Horas"); });
 
             Separator sep = new Separator();
@@ -250,9 +266,10 @@ public class MainFX {
                     secaoLabel("GESTAO"),
                     btnEscolas, btnTurmas, btnAlunos,
                     sep,
-                    secaoLabel("MODULOS"),
-                    btnCronograma, btnChamada, btnRegistroHoras,
-                    spacer, btnSair);
+                    secaoLabel("MÓDULOS"),
+                    btnCronograma, btnChamada, btnDiario, btnRegistroHoras,
+                    spacer, btnSair
+            );
             ativar(btnEscolas);
         }
 
@@ -331,6 +348,7 @@ public class MainFX {
     public RegistroHorasAdminView   getRegistroHorasAdminView() { return registroHorasAdminView; }
     public CronogramaView           getCronogramaView()         { return cronogramaView; }
     public ChamadaView              getChamadaView()            { return chamadaView; }
+    public DiarioView               getDiarioView()             { return diarioView; }
     public RegistroHorasView        getRegistroHorasView()      { return registroHorasView; }
     public Stage                    getStage()                  { return stage; }
 

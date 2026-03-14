@@ -71,7 +71,6 @@ public class ChamadaDAO {
     }
 
     public boolean excluirChamada(String chamadaId) {
-        // Deleta presenças e chamada em transação
         String sqlPres = "DELETE FROM chamada_presencas WHERE chamada_id = ?::uuid";
         String sqlCham = "DELETE FROM chamadas WHERE id = ?::uuid";
         try (Connection conn = ConexaoBD.conectar()) {
@@ -96,23 +95,15 @@ public class ChamadaDAO {
             return false;
         }
     }
-    // ─────────────────────────────────────────────────────────────────────────────
-// ADICIONE ESTE MÉTODO à classe ChamadaDAO existente
-// (dentro do bloco "CHAMADAS", após excluirChamada)
-// ─────────────────────────────────────────────────────────────────────────────
 
-    /**
-     * Atualiza o status de presença de cada aluno numa chamada já salva.
-     * Cada ChamadaPresenca deve ter seu id (UUID) preenchido — como vem de listarPresencas().
-     */
-    public boolean atualizarPresencas(List<core.ChamadaPresenca> presencas) {
+    public boolean atualizarPresencas(List<ChamadaPresenca> presencas) {
         String sql = "UPDATE chamada_presencas SET presente = ? WHERE id = ?::uuid";
-        try (java.sql.Connection conn = ConexaoBD.conectar();
-             java.sql.PreparedStatement stmt = conn.prepareStatement(sql)) {
+        try (Connection conn = ConexaoBD.conectar();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
             conn.setAutoCommit(false);
             try {
-                for (core.ChamadaPresenca p : presencas) {
-                    if (p.getId() == null) continue; // segurança
+                for (ChamadaPresenca p : presencas) {
+                    if (p.getId() == null) continue;
                     stmt.setBoolean(1, p.isPresente());
                     stmt.setString(2, p.getId());
                     stmt.addBatch();
@@ -120,12 +111,12 @@ public class ChamadaDAO {
                 stmt.executeBatch();
                 conn.commit();
                 return true;
-            } catch (java.sql.SQLException e) {
+            } catch (SQLException e) {
                 conn.rollback();
                 System.err.println("Erro ao atualizar presenças (rollback): " + e.getMessage());
                 return false;
             }
-        } catch (java.sql.SQLException e) {
+        } catch (SQLException e) {
             System.err.println("Erro de conexão: " + e.getMessage());
             return false;
         }
@@ -204,7 +195,7 @@ public class ChamadaDAO {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // RESUMO POR TURMA — preview na tela de chamada
+    // RESUMO POR TURMA
     // ─────────────────────────────────────────────────────────────────────────
 
     public List<ResumoTurma> resumoPorTurma(String professorId) {
@@ -252,16 +243,10 @@ public class ChamadaDAO {
     // REGISTRO DE HORAS
     // ─────────────────────────────────────────────────────────────────────────
 
-    /**
-     * Para o professor: filtra pelo próprio ID.
-     */
     public List<RegistroHoras> listarRegistroHoras(String professorId, Integer mes, Integer ano) {
         return listarRegistroHorasInterno(professorId, mes, ano);
     }
 
-    /**
-     * Para o admin: professorId pode ser null (todos os professores).
-     */
     public List<RegistroHoras> listarRegistroHorasAdmin(String professorId, Integer mes, Integer ano) {
         return listarRegistroHorasInterno(professorId, mes, ano);
     }
@@ -272,6 +257,7 @@ public class ChamadaDAO {
         StringBuilder sql = new StringBuilder("""
             SELECT chamada_id, professor_id, professor_nome,
                    turma_id, turma_nome, escola_nome,
+                   COALESCE(escola_tipo, 'PUBLICA') AS escola_tipo,
                    data_aula, horario_inicio, horario_fim, tipo_aula,
                    horas_ministradas, total_alunos, total_presentes, total_ausentes
             FROM v_registro_horas
@@ -308,6 +294,7 @@ public class ChamadaDAO {
                             rs.getString("turma_id"),
                             rs.getString("turma_nome"),
                             rs.getString("escola_nome"),
+                            rs.getString("escola_tipo"),
                             rs.getDate("data_aula").toLocalDate(),
                             rs.getString("horario_inicio"),
                             rs.getString("horario_fim"),

@@ -17,8 +17,9 @@ import java.util.List;
 
 public class CronogramaView {
 
+    // FIX: valores com acento — exatamente como o banco armazena
     private static final String[] DIAS =
-            {"SEGUNDA","TERCA","QUARTA","QUINTA","SEXTA","SABADO"};
+            {"SEGUNDA", "TERÇA", "QUARTA", "QUINTA", "SEXTA", "SÁBADO"};
 
     private BorderPane view;
     private MainFX mainApp;
@@ -115,7 +116,6 @@ public class CronogramaView {
 
         tabela.getColumns().addAll(cTipo, cDia, cTurma, cHor, cPer);
 
-        // Colorir linhas ocasionais e menu contexto apenas para criados pelo professor
         tabela.setRowFactory(tv -> new TableRow<>() {
             @Override protected void updateItem(CronogramaAula item, boolean empty) {
                 super.updateItem(item, empty);
@@ -178,8 +178,9 @@ public class CronogramaView {
             }
         });
 
-        cbTipo = new ComboBox<>(FXCollections.observableArrayList("REUNIAO","AULA_SUBSTITUTA"));
-        cbTipo.setValue("REUNIAO"); cbTipo.setMaxWidth(Double.MAX_VALUE);
+        // FIX: tipos com acento igual ao banco
+        cbTipo = new ComboBox<>(FXCollections.observableArrayList("REUNIÃO", "AULA_SUBSTITUTA"));
+        cbTipo.setValue("REUNIÃO"); cbTipo.setMaxWidth(Double.MAX_VALUE);
 
         dpData = new DatePicker(LocalDate.now());
         dpData.setMaxWidth(Double.MAX_VALUE);
@@ -235,7 +236,7 @@ public class CronogramaView {
 
             String bg, border, fg;
             switch (slot.getTipo()) {
-                case "REUNIAO"         -> { bg = "#faf5ff"; border = "#d6bcfa"; fg = "#553c9a"; }
+                case "REUNIÃO"         -> { bg = "#faf5ff"; border = "#d6bcfa"; fg = "#553c9a"; }
                 case "AULA_SUBSTITUTA" -> { bg = "#fffaf0"; border = "#fbd38d"; fg = "#744210"; }
                 default                -> { bg = "#ebf8ff"; border = "#bee3f8"; fg = "#2b6cb0"; }
             }
@@ -269,7 +270,7 @@ public class CronogramaView {
         editando = null;
         cbTurma.getItems().setAll(turmaDAO.listarPorProfessor(mainApp.getSessao().getId()));
         cbTurma.getSelectionModel().clearSelection();
-        cbTipo.setValue("REUNIAO");
+        cbTipo.setValue("REUNIÃO");
         dpData.setValue(LocalDate.now());
         txtInicio.clear(); txtFim.clear();
         mostrarForm();
@@ -329,24 +330,27 @@ public class CronogramaView {
         }
     }
 
+    // FIX: diaParaColuna usa os mesmos valores do array DIAS (com acento)
     private int diaParaColuna(String dia) {
         for (int i = 0; i < DIAS.length; i++) if (DIAS[i].equals(dia)) return i;
         return -1;
     }
 
+    // FIX: abreviações alinhadas ao array DIAS (com acento)
     private String abreviarDia(String dia) {
         return switch (dia) {
-            case "SEGUNDA" -> "SEG"; case "TERCA"  -> "TER"; case "QUARTA" -> "QUA";
-            case "QUINTA"  -> "QUI"; case "SEXTA"  -> "SEX"; case "SABADO" -> "SAB";
+            case "SEGUNDA" -> "SEG"; case "TERÇA"  -> "TER"; case "QUARTA" -> "QUA";
+            case "QUINTA"  -> "QUI"; case "SEXTA"  -> "SEX"; case "SÁBADO" -> "SÁB";
             default -> dia;
         };
     }
 
+    // FIX: retorna valores com acento — igual ao check constraint do banco
     private String diaSemanaPortugues(DayOfWeek dow) {
         return switch (dow) {
-            case MONDAY    -> "SEGUNDA"; case TUESDAY   -> "TERCA";
+            case MONDAY    -> "SEGUNDA"; case TUESDAY   -> "TERÇA";
             case WEDNESDAY -> "QUARTA";  case THURSDAY  -> "QUINTA";
-            case FRIDAY    -> "SEXTA";   case SATURDAY  -> "SABADO";
+            case FRIDAY    -> "SEXTA";   case SATURDAY  -> "SÁBADO";
             default        -> "DOMINGO";
         };
     }

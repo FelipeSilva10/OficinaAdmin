@@ -18,9 +18,6 @@ import java.time.format.TextStyle;
 import java.util.List;
 import java.util.Locale;
 
-/**
- * Visao do PROFESSOR — suas proprias horas, com filtro de mes/ano e geracao de PDF.
- */
 public class RegistroHorasView {
 
     private BorderPane view;
@@ -32,7 +29,11 @@ public class RegistroHorasView {
 
     private ComboBox<String>  cbMes;
     private ComboBox<Integer> cbAno;
-    private TextField         txtValorHora;
+
+    // Três campos de valor — Pública / Privada / Reunião
+    private TextField txtValorPublica;
+    private TextField txtValorPrivada;
+    private TextField txtValorReuniao;
 
     private Label lblTotalAulas;
     private Label lblTotalHoras;
@@ -71,7 +72,7 @@ public class RegistroHorasView {
 
         Region sp = new Region(); HBox.setHgrow(sp, Priority.ALWAYS);
         HBox header = new HBox(12, lblTitulo, sp,
-                new Label("Mes:"), cbMes,
+                new Label("Mês:"), cbMes,
                 new Label("Ano:"), cbAno,
                 btnAt);
         header.setAlignment(Pos.CENTER_LEFT);
@@ -92,6 +93,27 @@ public class RegistroHorasView {
         cTipo.setCellValueFactory(cd -> new SimpleStringProperty(cd.getValue().getTipoLabel()));
         cTipo.setMaxWidth(120);
 
+        // Coluna Rede (Pública/Privada)
+        TableColumn<RegistroHoras, String> cRede = new TableColumn<>("Rede");
+        cRede.setCellValueFactory(cd -> new SimpleStringProperty(cd.getValue().getEscolaTipoLabel()));
+        cRede.setMaxWidth(80);
+        cRede.setCellFactory(col -> new TableCell<>() {
+            @Override protected void updateItem(String v, boolean empty) {
+                super.updateItem(v, empty);
+                if (empty || v == null) { setText(null); setStyle(""); return; }
+                setText(v);
+                // Reunião/Substituta não tem rede relevante
+                RegistroHoras r = getTableView().getItems().get(getIndex());
+                if (r.isOcasional()) {
+                    setStyle("-fx-text-fill: #6b46c1;");
+                } else if (r.isEscolaPublica()) {
+                    setStyle("-fx-text-fill: #2b6cb0; -fx-font-weight: bold;");
+                } else {
+                    setStyle("-fx-text-fill: #276749; -fx-font-weight: bold;");
+                }
+            }
+        });
+
         TableColumn<RegistroHoras, String> cTurma = new TableColumn<>("Turma");
         cTurma.setCellValueFactory(cd -> new SimpleStringProperty(cd.getValue().getTurmaNome()));
 
@@ -107,28 +129,30 @@ public class RegistroHorasView {
         cHoras.setMaxWidth(80);
         cHoras.setStyle("-fx-alignment:CENTER;");
 
-        TableColumn<RegistroHoras, String> cPres = new TableColumn<>("Presenca");
+        TableColumn<RegistroHoras, String> cPres = new TableColumn<>("Presença");
         cPres.setCellValueFactory(cd -> new SimpleStringProperty(
                 cd.getValue().getTotalPresentes() + "/" + cd.getValue().getTotalAlunos()));
         cPres.setMaxWidth(90);
         cPres.setStyle("-fx-alignment:CENTER;");
 
-        tabela.getColumns().addAll(cData, cTipo, cTurma, cEscola, cHor, cHoras, cPres);
+        tabela.getColumns().addAll(cData, cTipo, cRede, cTurma, cEscola, cHor, cHoras, cPres);
 
-        // Cor por tipo de aula
+        // Cor por tipo de aula / rede
         tabela.setRowFactory(tv -> new TableRow<>() {
             @Override protected void updateItem(RegistroHoras item, boolean empty) {
                 super.updateItem(item, empty);
                 if (empty || item == null) { setStyle(""); return; }
-                setStyle(switch (item.getTipoAula()) {
-                    case "REUNIAO"         -> "-fx-background-color:#faf5ff;";
-                    case "AULA_SUBSTITUTA" -> "-fx-background-color:#fffaf0;";
-                    default                -> "";
-                });
+                if (item.isOcasional()) {
+                    setStyle("-fx-background-color:#faf5ff;");
+                } else if (!item.isEscolaPublica()) {
+                    setStyle("-fx-background-color:#f0fff4;");  // verde claro = privada
+                } else {
+                    setStyle("");
+                }
             }
         });
 
-        // ── Rodape: totais + geracao de PDF ────────────────────────────────
+        // ── Rodape: totais + valores diferenciados + PDF ──────────────────
         lblTotalAulas = new Label("—");
         lblTotalHoras = new Label("—");
 
@@ -140,18 +164,31 @@ public class RegistroHorasView {
                 card("Total de Horas", lblTotalHoras, "#38a169", cardStyle));
         cardsBox.setAlignment(Pos.CENTER_LEFT);
 
-        // Campo de valor/hora + botao PDF
-        Label lblValor = new Label("Valor/hora (R$):");
-        lblValor.setStyle("-fx-font-size:13px;-fx-text-fill:#2d3748;");
-
-        txtValorHora = new TextField();
-        txtValorHora.setPromptText("Ex: 41,00");
-        txtValorHora.setPrefWidth(110);
-        txtValorHora.setStyle(
+        // Campos de valor por categoria
+        String estiloInput =
                 "-fx-background-radius:8;-fx-border-radius:8;" +
-                        "-fx-border-color:#e2e8f0;-fx-padding:6 10;-fx-font-size:13px;");
+                        "-fx-border-color:#e2e8f0;-fx-padding:6 10;-fx-font-size:13px;";
 
-        Button btnPdf = new Button("Gerar Relatorio PDF");
+        txtValorPublica = new TextField();
+        txtValorPublica.setPromptText("Ex: 41,00");
+        txtValorPublica.setPrefWidth(90);
+        txtValorPublica.setStyle(estiloInput);
+
+        txtValorPrivada = new TextField();
+        txtValorPrivada.setPromptText("Ex: 55,00");
+        txtValorPrivada.setPrefWidth(90);
+        txtValorPrivada.setStyle(estiloInput);
+
+        txtValorReuniao = new TextField();
+        txtValorReuniao.setPromptText("Ex: 35,00");
+        txtValorReuniao.setPrefWidth(90);
+        txtValorReuniao.setStyle(estiloInput);
+
+        Label lblVP = label("Pública (R$):");
+        Label lblVR2 = label("Privada (R$):");
+        Label lblVR = label("Reunião (R$):");
+
+        Button btnPdf = new Button("Gerar Relatório PDF");
         btnPdf.setStyle(
                 "-fx-background-color:#2d3748;-fx-text-fill:white;" +
                         "-fx-background-radius:8;-fx-padding:8 18;-fx-font-weight:bold;-fx-font-size:13px;");
@@ -159,7 +196,18 @@ public class RegistroHorasView {
 
         Region spRodape = new Region(); HBox.setHgrow(spRodape, Priority.ALWAYS);
 
-        HBox rodape = new HBox(16, cardsBox, spRodape, lblValor, txtValorHora, btnPdf);
+        VBox valoresBox = new VBox(4,
+                new Label("Valor por hora:") {{
+                    setStyle("-fx-font-weight:bold;-fx-text-fill:#2d3748;-fx-font-size:12px;");
+                }},
+                new HBox(8,
+                        lblVP, txtValorPublica,
+                        lblVR2, txtValorPrivada,
+                        lblVR, txtValorReuniao
+                ) {{ setAlignment(Pos.CENTER_LEFT); }}
+        );
+
+        HBox rodape = new HBox(16, cardsBox, spRodape, valoresBox, btnPdf);
         rodape.setAlignment(Pos.CENTER_LEFT);
         rodape.setPadding(new Insets(12, 20, 16, 20));
         rodape.setStyle("-fx-border-color:#e2e8f0;-fx-border-width:1 0 0 0;");
@@ -168,6 +216,12 @@ public class RegistroHorasView {
         VBox centro = new VBox(header, tabela, rodape);
         VBox.setVgrow(tabela, Priority.ALWAYS);
         view.setCenter(centro);
+    }
+
+    private Label label(String texto) {
+        Label l = new Label(texto);
+        l.setStyle("-fx-font-size:12px;-fx-text-fill:#4a5568;");
+        return l;
     }
 
     // ── Carregar dados ─────────────────────────────────────────────────────
@@ -191,29 +245,20 @@ public class RegistroHorasView {
 
     private void gerarPdf() {
         if (dados.isEmpty()) {
-            mainApp.mostrarAviso("Nenhum registro para gerar relatorio.", true);
+            mainApp.mostrarAviso("Nenhum registro para gerar relatório.", true);
             return;
         }
 
-        // Parse do valor/hora
-        double valorHora = 0;
-        String vStr = txtValorHora.getText().replace(",", ".").trim();
-        if (!vStr.isBlank()) {
-            try {
-                valorHora = Double.parseDouble(vStr);
-            } catch (NumberFormatException ex) {
-                mainApp.mostrarAviso("Valor/hora invalido. Use formato: 41,00", true);
-                return;
-            }
-        }
+        double valorPublica = parseValor(txtValorPublica.getText(), "Pública");
+        if (valorPublica < 0) return;
+        double valorPrivada = parseValor(txtValorPrivada.getText(), "Privada");
+        if (valorPrivada < 0) return;
+        double valorReuniao = parseValor(txtValorReuniao.getText(), "Reunião");
+        if (valorReuniao < 0) return;
 
-        // FileChooser para salvar
         FileChooser fc = new FileChooser();
-        fc.setTitle("Salvar Relatorio de Horas");
-        fc.getExtensionFilters().add(
-                new FileChooser.ExtensionFilter("Arquivo PDF", "*.pdf"));
-
-        // Sugestao de nome baseada no periodo selecionado
+        fc.setTitle("Salvar Relatório de Horas");
+        fc.getExtensionFilters().add(new FileChooser.ExtensionFilter("Arquivo PDF", "*.pdf"));
         String mesStr = cbMes.getValue().equals("Todos os meses")
                 ? "Todos" : cbMes.getValue().substring(0, 3).toUpperCase();
         fc.setInitialFileName("Relatorio_Horas_" + mesStr + "_" + cbAno.getValue() + ".pdf");
@@ -221,15 +266,16 @@ public class RegistroHorasView {
         File arquivo = fc.showSaveDialog(mainApp.getStage());
         if (arquivo == null) return;
 
-        final double vH = valorHora;
+        final double vP = valorPublica;
+        final double vR2 = valorPrivada;
+        final double vR = valorReuniao;
         final String caminho = arquivo.getAbsolutePath();
         final String nomeProf = mainApp.getSessao().getNome();
         final List<RegistroHoras> copia = List.copyOf(dados);
 
-        // Gera em thread separada para nao travar a UI
         new Thread(() -> {
             try {
-                report.RelatorioHorasPdf.gerar(copia, nomeProf, vH, caminho);
+                report.RelatorioHorasPdf.gerar(copia, nomeProf, vP, vR2, vR, caminho);
                 javafx.application.Platform.runLater(() ->
                         mainApp.mostrarAviso("PDF gerado com sucesso!", false));
             } catch (Exception ex) {
@@ -238,6 +284,16 @@ public class RegistroHorasView {
                         mainApp.mostrarAviso("Erro ao gerar PDF: " + ex.getMessage(), true));
             }
         }).start();
+    }
+
+    private double parseValor(String texto, String campo) {
+        if (texto == null || texto.isBlank()) return 0;
+        try {
+            return Double.parseDouble(texto.replace(",", ".").trim());
+        } catch (NumberFormatException ex) {
+            mainApp.mostrarAviso("Valor inválido em '" + campo + "'. Use formato: 41,00", true);
+            return -1;
+        }
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────

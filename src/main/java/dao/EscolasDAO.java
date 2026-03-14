@@ -11,11 +11,12 @@ import java.util.List;
 public class EscolasDAO {
 
     public boolean inserir(Escola escola) {
-        String sql = "INSERT INTO escolas (nome, status) VALUES (?, ?)";
+        String sql = "INSERT INTO escolas (nome, status, tipo) VALUES (?, ?, ?)";
         try (Connection conn = ConexaoBD.conectar();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, escola.getNome());
             stmt.setString(2, escola.getStatus());
+            stmt.setString(3, escola.getTipo());
             return stmt.executeUpdate() > 0;
         } catch (SQLException e) {
             System.err.println("Erro ao inserir escola: " + e.getMessage());
@@ -23,12 +24,28 @@ public class EscolasDAO {
         }
     }
 
+    /** Atualiza nome (backward compat) */
     public boolean atualizar(String id, String novoNome) {
         String sql = "UPDATE escolas SET nome = ? WHERE id = ?::uuid";
         try (Connection conn = ConexaoBD.conectar();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, novoNome);
             stmt.setString(2, id);
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            System.err.println("Erro ao atualizar escola: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /** Atualiza nome e tipo */
+    public boolean atualizar(String id, String novoNome, String tipo) {
+        String sql = "UPDATE escolas SET nome = ?, tipo = ? WHERE id = ?::uuid";
+        try (Connection conn = ConexaoBD.conectar();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, novoNome);
+            stmt.setString(2, tipo != null ? tipo : "PUBLICA");
+            stmt.setString(3, id);
             return stmt.executeUpdate() > 0;
         } catch (SQLException e) {
             System.err.println("Erro ao atualizar escola: " + e.getMessage());
@@ -50,15 +67,17 @@ public class EscolasDAO {
 
     public List<Escola> listarTodas() {
         List<Escola> lista = new ArrayList<>();
-        String sql = "SELECT id, nome, status FROM escolas ORDER BY nome ASC";
+        String sql = "SELECT id, nome, status, COALESCE(tipo,'PUBLICA') AS tipo " +
+                "FROM escolas ORDER BY nome ASC";
         try (Connection conn = ConexaoBD.conectar();
              PreparedStatement stmt = conn.prepareStatement(sql);
              ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) {
-                lista.add(new Escola(
+                lista.add(Escola.doBanco(
                         rs.getString("id"),
                         rs.getString("nome"),
-                        rs.getString("status")
+                        rs.getString("status"),
+                        rs.getString("tipo")
                 ));
             }
         } catch (SQLException e) {
@@ -67,10 +86,9 @@ public class EscolasDAO {
         return lista;
     }
 
-    // PATCH: retorna apenas as escolas que têm turmas onde o professor é regente
     public List<Escola> listarPorProfessor(String professorId) {
         List<Escola> lista = new ArrayList<>();
-        String sql = "SELECT DISTINCT e.id, e.nome, e.status " +
+        String sql = "SELECT DISTINCT e.id, e.nome, e.status, COALESCE(e.tipo,'PUBLICA') AS tipo " +
                 "FROM escolas e " +
                 "JOIN turmas t ON t.escola_id = e.id " +
                 "WHERE t.professor_id = ?::uuid " +
@@ -80,10 +98,11 @@ public class EscolasDAO {
             stmt.setString(1, professorId);
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
-                    lista.add(new Escola(
+                    lista.add(Escola.doBanco(
                             rs.getString("id"),
                             rs.getString("nome"),
-                            rs.getString("status")
+                            rs.getString("status"),
+                            rs.getString("tipo")
                     ));
                 }
             }

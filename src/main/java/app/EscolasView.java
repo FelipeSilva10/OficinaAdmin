@@ -24,6 +24,9 @@ public class EscolasView {
     private VBox painelDetalhe;
     private Label lblAcaoEscola;
     private TextField txtNome;
+    private RadioButton rbPublica, rbPrivada;
+    private ToggleGroup tgTipo;
+    private Label lblTipoLabel;
     private Button btnSalvar;
 
     public EscolasView(MainFX mainApp) {
@@ -39,7 +42,6 @@ public class EscolasView {
         Label lblTitulo = new Label("Gestão de Escolas");
         lblTitulo.setStyle("-fx-font-size: 22px; -fx-font-weight: bold;");
 
-        // PATCH: subtítulo de escopo para professor
         Label lblEscopo = new Label("Exibindo apenas as escolas das suas turmas");
         lblEscopo.setStyle("-fx-text-fill: #718096; -fx-font-size: 12px;");
         lblEscopo.setVisible(!mainApp.isAdmin());
@@ -52,9 +54,9 @@ public class EscolasView {
         Button btnAtualizar = new Button("Atualizar");
         btnAtualizar.setOnAction(e -> carregarDados());
 
-        // PATCH: cadastrar escola apenas para admin
         Button btnNova = new Button("+ Cadastrar Escola");
-        btnNova.setStyle("-fx-background-color: #28a745; -fx-text-fill: white; -fx-background-radius: 8; -fx-padding: 8 16; -fx-font-weight: bold;");
+        btnNova.setStyle("-fx-background-color: #28a745; -fx-text-fill: white; " +
+                "-fx-background-radius: 8; -fx-padding: 8 16; -fx-font-weight: bold;");
         btnNova.setOnAction(e -> abrirFormNovo());
         btnNova.setVisible(mainApp.isAdmin());
         btnNova.setManaged(mainApp.isAdmin());
@@ -75,19 +77,35 @@ public class EscolasView {
         TableColumn<Escola, String> colNome = new TableColumn<>("Nome da Escola");
         colNome.setCellValueFactory(new PropertyValueFactory<>("nome"));
 
-        TableColumn<Escola, String> colStatus = new TableColumn<>("Status");
-        colStatus.setCellValueFactory(new PropertyValueFactory<>("status"));
-
-        tabela.getColumns().addAll(colNome, colStatus);
-
-        FilteredList<Escola> filtrado = new FilteredList<>(dados, escola -> true);
-        txtBusca.textProperty().addListener((obs, old, term) -> {
-            String filtro = term == null ? "" : term.trim().toLowerCase();
-            filtrado.setPredicate(escola -> filtro.isBlank()
-                    || escola.getNome().toLowerCase().contains(filtro)
-                    || escola.getStatus().toLowerCase().contains(filtro));
+        TableColumn<Escola, String> colTipo = new TableColumn<>("Rede");
+        colTipo.setCellValueFactory(new PropertyValueFactory<>("tipoLabel"));
+        colTipo.setMaxWidth(90);
+        // Cor por tipo
+        colTipo.setCellFactory(col -> new TableCell<>() {
+            @Override protected void updateItem(String v, boolean empty) {
+                super.updateItem(v, empty);
+                if (empty || v == null) { setText(null); setStyle(""); return; }
+                setText(v);
+                setStyle("PRIVADA".equals(getTableView().getItems().get(getIndex()).getTipo())
+                        ? "-fx-text-fill: #6b46c1; -fx-font-weight: bold;"
+                        : "-fx-text-fill: #2b6cb0; -fx-font-weight: bold;");
+            }
         });
 
+        TableColumn<Escola, String> colStatus = new TableColumn<>("Status");
+        colStatus.setCellValueFactory(new PropertyValueFactory<>("status"));
+        colStatus.setMaxWidth(80);
+
+        tabela.getColumns().addAll(colNome, colTipo, colStatus);
+
+        FilteredList<Escola> filtrado = new FilteredList<>(dados, e -> true);
+        txtBusca.textProperty().addListener((obs, old, term) -> {
+            String f = term == null ? "" : term.trim().toLowerCase();
+            filtrado.setPredicate(e -> f.isBlank()
+                    || e.getNome().toLowerCase().contains(f)
+                    || e.getStatus().toLowerCase().contains(f)
+                    || e.getTipoLabel().toLowerCase().contains(f));
+        });
         SortedList<Escola> ordenado = new SortedList<>(filtrado);
         ordenado.comparatorProperty().bind(tabela.comparatorProperty());
         tabela.setItems(ordenado);
@@ -95,42 +113,40 @@ public class EscolasView {
         tabela.setRowFactory(tv -> {
             TableRow<Escola> row = new TableRow<>();
 
-            // PATCH: menu de excluir apenas para admin
             if (mainApp.isAdmin()) {
-                ContextMenu contextMenu = new ContextMenu();
-                MenuItem deleteItem = new MenuItem("Excluir Escola");
-                deleteItem.setStyle("-fx-text-fill: red;");
-                deleteItem.setOnAction(event -> {
+                ContextMenu cm = new ContextMenu();
+                MenuItem del = new MenuItem("Excluir Escola");
+                del.setStyle("-fx-text-fill: red;");
+                del.setOnAction(ev -> {
                     Escola e = row.getItem();
                     if (e != null) {
                         if (dao.excluir(e.getId())) {
-                            mainApp.mostrarAviso("Escola removida com sucesso!", false);
-                            carregarDados();
-                            fecharDetalhe();
+                            mainApp.mostrarAviso("Escola removida!", false);
+                            carregarDados(); fecharDetalhe();
                         } else {
                             mainApp.mostrarAviso("Erro ao excluir. Verifique vínculos.", true);
                         }
                     }
                 });
-                contextMenu.getItems().add(deleteItem);
-                row.emptyProperty().addListener((obs, wasEmpty, isNowEmpty) ->
-                        row.setContextMenu(isNowEmpty ? null : contextMenu));
+                cm.getItems().add(del);
+                row.emptyProperty().addListener((obs, w, n) -> row.setContextMenu(n ? null : cm));
             }
 
-            row.setOnMouseClicked(event -> {
-                if (event.getClickCount() == 2 && !row.isEmpty()) {
+            row.setOnMouseClicked(ev -> {
+                if (ev.getClickCount() == 2 && !row.isEmpty()) {
                     mainApp.abrirDashboardEscola(row.getItem());
-                } else if (event.getClickCount() == 1 && !row.isEmpty()) {
+                } else if (ev.getClickCount() == 1 && !row.isEmpty()) {
                     abrirDetalheEscola(row.getItem());
                 }
             });
             return row;
         });
 
-        // ── Painel de detalhe ──────────────────────────────────────────────────
+        // ── Painel de detalhe ──────────────────────────────────────────────
         painelDetalhe = new VBox(14);
         painelDetalhe.setPadding(new Insets(24));
-        painelDetalhe.setStyle("-fx-background-color: white; -fx-border-color: #e2e8f0; -fx-border-width: 0 0 0 1;");
+        painelDetalhe.setStyle("-fx-background-color: white; " +
+                "-fx-border-color: #e2e8f0; -fx-border-width: 0 0 0 1;");
         painelDetalhe.setMinWidth(300);
         painelDetalhe.setMaxWidth(360);
         painelDetalhe.setVisible(false);
@@ -150,12 +166,37 @@ public class EscolasView {
 
         txtNome = new TextField();
         txtNome.setPromptText("Nome da Escola");
-        // PATCH: professor não edita
         txtNome.setEditable(mainApp.isAdmin());
 
-        // PATCH: botão salvar apenas para admin
+        // Seletor de tipo (admin only)
+        tgTipo  = new ToggleGroup();
+        rbPublica = new RadioButton("Pública");
+        rbPrivada = new RadioButton("Privada");
+        rbPublica.setToggleGroup(tgTipo);
+        rbPrivada.setToggleGroup(tgTipo);
+        rbPublica.setSelected(true);
+
+        HBox tipoBox = new HBox(16, rbPublica, rbPrivada);
+        tipoBox.setAlignment(Pos.CENTER_LEFT);
+
+        Label lblTipoTit = new Label("Tipo de Rede:");
+        lblTipoTit.setStyle("-fx-font-weight: bold; -fx-text-fill: #2d3748;");
+
+        // Para professor: label somente leitura
+        lblTipoLabel = new Label();
+        lblTipoLabel.setStyle("-fx-text-fill: #4a5568; -fx-font-size: 13px;");
+
+        // Visibilidade condicional
+        lblTipoTit.setVisible(mainApp.isAdmin());
+        lblTipoTit.setManaged(mainApp.isAdmin());
+        tipoBox.setVisible(mainApp.isAdmin());
+        tipoBox.setManaged(mainApp.isAdmin());
+        lblTipoLabel.setVisible(!mainApp.isAdmin());
+        lblTipoLabel.setManaged(!mainApp.isAdmin());
+
         btnSalvar = new Button("Cadastrar Escola");
-        btnSalvar.setStyle("-fx-background-color: #28a745; -fx-text-fill: white; -fx-background-radius: 8; -fx-padding: 8 16; -fx-font-weight: bold;");
+        btnSalvar.setStyle("-fx-background-color: #28a745; -fx-text-fill: white; " +
+                "-fx-background-radius: 8; -fx-padding: 8 16; -fx-font-weight: bold;");
         btnSalvar.setMaxWidth(Double.MAX_VALUE);
         btnSalvar.setOnAction(e -> cadastrar());
         btnSalvar.setVisible(mainApp.isAdmin());
@@ -165,6 +206,8 @@ public class EscolasView {
                 hdrD, lblAcaoEscola, new Separator(),
                 lblFormTitle,
                 new Label("Nome:"), txtNome,
+                lblTipoTit, tipoBox,
+                lblTipoLabel,
                 btnSalvar
         );
 
@@ -176,12 +219,12 @@ public class EscolasView {
     }
 
     private void abrirFormNovo() {
-        // Só admin chega aqui (botão está oculto para professor)
         tabela.getSelectionModel().clearSelection();
         escolaSelecionada = null;
         lblAcaoEscola.setText("Nova Escola");
         btnSalvar.setText("Cadastrar Escola");
         txtNome.clear();
+        rbPublica.setSelected(true);
         mostrarDetalhe();
     }
 
@@ -190,23 +233,29 @@ public class EscolasView {
         lblAcaoEscola.setText(mainApp.isAdmin() ? "Editar Escola" : escola.getNome());
         if (mainApp.isAdmin()) btnSalvar.setText("Salvar Alterações");
         txtNome.setText(escola.getNome());
+
+        if ("PRIVADA".equals(escola.getTipo())) rbPrivada.setSelected(true);
+        else rbPublica.setSelected(true);
+
+        lblTipoLabel.setText("Rede: " + escola.getTipoLabel());
         mostrarDetalhe();
     }
 
     private void cadastrar() {
-        // Só admin chega aqui (botão está oculto para professor)
         String nome = txtNome.getText().trim();
         if (nome.isBlank()) {
             mainApp.mostrarAviso("Preencha o nome da escola.", true);
             return;
         }
+        String tipo = rbPrivada.isSelected() ? "PRIVADA" : "PUBLICA";
 
         boolean sucesso = escolaSelecionada == null
-                ? dao.inserir(new Escola(nome, "ativo"))
-                : dao.atualizar(escolaSelecionada.getId(), nome);
+                ? dao.inserir(Escola.nova(nome, "ativo", tipo))
+                : dao.atualizar(escolaSelecionada.getId(), nome, tipo);
 
         if (sucesso) {
-            mainApp.mostrarAviso(escolaSelecionada == null ? "Escola cadastrada com sucesso!" : "Escola atualizada!", false);
+            mainApp.mostrarAviso(escolaSelecionada == null
+                    ? "Escola cadastrada com sucesso!" : "Escola atualizada!", false);
             txtNome.clear();
             carregarDados();
             fecharDetalhe();
@@ -225,12 +274,8 @@ public class EscolasView {
     }
 
     private void carregarDados() {
-        // PATCH: professor vê apenas escolas das suas turmas
-        if (mainApp.isAdmin()) {
-            dados.setAll(dao.listarTodas());
-        } else {
-            dados.setAll(dao.listarPorProfessor(mainApp.getSessao().getId()));
-        }
+        if (mainApp.isAdmin()) dados.setAll(dao.listarTodas());
+        else dados.setAll(dao.listarPorProfessor(mainApp.getSessao().getId()));
     }
 
     public BorderPane getView() { return view; }

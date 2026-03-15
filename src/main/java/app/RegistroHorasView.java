@@ -241,8 +241,6 @@ public class RegistroHorasView {
         lblTotalHoras.setText(String.format("%.1fh", horas));
     }
 
-    // ── Gerar PDF ──────────────────────────────────────────────────────────
-
     private void gerarPdf() {
         if (dados.isEmpty()) {
             mainApp.mostrarAviso("Nenhum registro para gerar relatório.", true);
@@ -256,28 +254,29 @@ public class RegistroHorasView {
         double valorReuniao = parseValor(txtValorReuniao.getText(), "Reunião");
         if (valorReuniao < 0) return;
 
-        FileChooser fc = new FileChooser();
-        fc.setTitle("Salvar Relatório de Horas");
-        fc.getExtensionFilters().add(new FileChooser.ExtensionFilter("Arquivo PDF", "*.pdf"));
         String mesStr = cbMes.getValue().equals("Todos os meses")
                 ? "Todos" : cbMes.getValue().substring(0, 3).toUpperCase();
-        fc.setInitialFileName("Relatorio_Horas_" + mesStr + "_" + cbAno.getValue() + ".pdf");
+        String nomeArquivo = "Relatorio_Horas_" + mesStr + "_" + cbAno.getValue() + ".pdf";
 
-        File arquivo = fc.showSaveDialog(mainApp.getStage());
-        if (arquivo == null) return;
+        // Salva na Área de Trabalho do usuário atual
+        String desktop = System.getProperty("user.home") + java.io.File.separator + "Desktop";
+        java.io.File pasta = new java.io.File(desktop);
+        if (!pasta.exists() || !pasta.isDirectory()) {
+            // Fallback: pasta home caso Desktop não exista
+            pasta = new java.io.File(System.getProperty("user.home"));
+        }
+        String caminho = pasta.getAbsolutePath() + java.io.File.separator + nomeArquivo;
 
-        final double vP = valorPublica;
-        final double vR2 = valorPrivada;
-        final double vR = valorReuniao;
-        final String caminho = arquivo.getAbsolutePath();
+        final double vP = valorPublica, vR2 = valorPrivada, vR = valorReuniao;
         final String nomeProf = mainApp.getSessao().getNome();
         final List<RegistroHoras> copia = List.copyOf(dados);
+        final String caminhoFinal = caminho;
 
         new Thread(() -> {
             try {
-                report.RelatorioHorasPdf.gerar(copia, nomeProf, vP, vR2, vR, caminho);
+                report.RelatorioHorasPdf.gerar(copia, nomeProf, vP, vR2, vR, caminhoFinal);
                 javafx.application.Platform.runLater(() ->
-                        mainApp.mostrarAviso("PDF gerado com sucesso!", false));
+                        mainApp.mostrarAviso("PDF salvo na Área de Trabalho: " + nomeArquivo, false));
             } catch (Exception ex) {
                 ex.printStackTrace();
                 javafx.application.Platform.runLater(() ->

@@ -32,7 +32,6 @@ public class ConexaoBD {
     private static final HikariDataSource DATA_SOURCE = criarDataSource();
 
     private static HikariDataSource criarDataSource() {
-        // Se o usuário definiu DB_URL, usa sem tentar fallback
         String envUrl  = System.getenv("DB_URL");
         String envUser = System.getenv("DB_USER");
         String envPass = System.getenv("DB_PASS");
@@ -40,31 +39,39 @@ public class ConexaoBD {
         if (envUrl != null && !envUrl.isBlank()) {
             System.out.println("⚙ BD: usando DB_URL de variável de ambiente.");
             return buildPool(envUrl,
-                    envUser  != null ? envUser  : DIRECT_USER,
-                    envPass  != null ? envPass  : DEFAULT_PASS);
+                    envUser != null ? envUser : DIRECT_USER,
+                    envPass != null ? envPass : DEFAULT_PASS);
         }
 
         String pass = envPass != null && !envPass.isBlank() ? envPass : DEFAULT_PASS;
 
-        // 1ª tentativa: porta 5432 (rápida, sem pooler)
-        if (portaAcessivel("db.iabajqkkodldjwcgvpiz.supabase.co", 5432, 3_000)) {
-            System.out.println("⚙ BD: porta 5432 acessível — usando conexão direta.");
-            return buildPool(DIRECT_URL, DIRECT_USER, pass);
-        }
-
-        // 2ª tentativa: porta 6543 (pooler, compatível com firewalls escolares)
-        System.out.println("⚙ BD: porta 5432 bloqueada — tentando pooler 6543.");
-        return buildPool(POOLER_URL, POOLER_USER, pass);
-    }
-
-    /** Testa se uma porta TCP está acessível antes de criar o pool. */
-    private static boolean portaAcessivel(String host, int porta, int timeoutMs) {
-        try (java.net.Socket s = new java.net.Socket()) {
-            s.connect(new java.net.InetSocketAddress(host, porta), timeoutMs);
-            return true;
+        // 1ª tentativa: porta 5432 direta
+        System.out.println("⚙ BD: testando conexão direta (5432)...");
+        try {
+            HikariDataSource ds = buildPool(DIRECT_URL, DIRECT_USER, pass);
+            try (Connection c = ds.getConnection()) {
+                System.out.println("⚙ BD: porta 5432 OK.");
+                return ds;
+            }
         } catch (Exception e) {
-            return false;
+            System.out.println("⚙ BD: 5432 falhou (" + e.getMessage() + "), tentando pooler 6543...");
         }
+
+        // 2ª tentativa: pooler 6543
+        try {
+            HikariDataSource ds = buildPool(POOLER_URL, POOLER_USER, pass);
+            try (Connection c = ds.getConnection()) {
+                System.out.println("⚙ BD: pooler 6543 OK.");
+                return ds;
+            }
+        } catch (Exception e) {
+            System.out.println("⚙ BD: 6543 falhou (" + e.getMessage() + ").");
+        }
+
+        // Último recurso: retorna o pooler mesmo sem validar
+        // (vai falhar na query com mensagem de erro decente)
+        System.err.println("⚠ BD: nenhuma conexão validada — usando pooler como fallback.");
+        return buildPool(POOLER_URL, POOLER_USER, pass);
     }
 
     private static HikariDataSource buildPool(String url, String user, String pass) {

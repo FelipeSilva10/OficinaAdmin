@@ -34,7 +34,7 @@ public class AlunosView {
         final SimpleBooleanProperty conflito = new SimpleBooleanProperty(false);
 
         AlunoLote(String nome, String email) {
-            this.nome  = nome;
+            this.nome = nome;
             this.email = email;
         }
     }
@@ -43,10 +43,10 @@ public class AlunosView {
 
     private BorderPane view;
     private TableView<Aluno> tabela;
-    private AlunoDAO alunoDAO;
-    private EscolasDAO escolasDAO;
-    private TurmaDAO turmaDAO;
-    private MainFX mainApp;
+    private final AlunoDAO alunoDAO;
+    private final EscolasDAO escolasDAO;
+    private final TurmaDAO turmaDAO;
+    private final MainFX mainApp;
     private final ObservableList<Aluno> dados = FXCollections.observableArrayList();
 
     private Aluno alunoSelecionado;
@@ -68,15 +68,14 @@ public class AlunosView {
     private ComboBox<Escola> cbEscolaLote;
     private ComboBox<Turma> cbTurmaLote;
     private PasswordField txtSenhaLote;
-    private TableView<AlunoLote> tabelaPreview;
-    private ObservableList<AlunoLote> previewDados = FXCollections.observableArrayList();
+    private final ObservableList<AlunoLote> previewDados = FXCollections.observableArrayList();
     private Label lblStatusLote;
 
     public AlunosView(MainFX mainApp) {
-        this.mainApp    = mainApp;
-        alunoDAO        = new AlunoDAO();
-        escolasDAO      = new EscolasDAO();
-        turmaDAO        = new TurmaDAO();
+        this.mainApp = mainApp;
+        this.alunoDAO = new AlunoDAO();
+        this.escolasDAO = new EscolasDAO();
+        this.turmaDAO = new TurmaDAO();
         construirInterface();
         carregarDados();
     }
@@ -148,7 +147,7 @@ public class AlunosView {
         TableColumn<Aluno, String> colTurma = new TableColumn<>("Turma");
         colTurma.setCellValueFactory(new PropertyValueFactory<>("turmaNome"));
 
-        tabela.getColumns().addAll(colNome, colEmail, colSenha, colEscola, colTurma);
+        tabela.getColumns().addAll(List.of(colNome, colEmail, colSenha, colEscola, colTurma));
 
         FilteredList<Aluno> filtrado = new FilteredList<>(dados, a -> true);
         txtBusca.textProperty().addListener((obs, old, term) -> {
@@ -239,13 +238,16 @@ public class AlunosView {
         Label lblFormTitle = new Label("Dados de Acesso e Matricula");
         lblFormTitle.setStyle("-fx-font-weight: bold; -fx-text-fill: #2d3748;");
 
-        txtNome  = new TextField(); txtNome.setPromptText("Nome completo");
+        txtNome = new TextField();
+        txtNome.setPromptText("Nome completo");
         txtNome.setEditable(mainApp.isAdmin());
 
-        txtEmail = new TextField(); txtEmail.setPromptText("E-mail");
+        txtEmail = new TextField();
+        txtEmail.setPromptText("E-mail");
         txtEmail.setEditable(false);
 
-        txtSenha = new PasswordField(); txtSenha.setPromptText("Senha (min. 6 caracteres)");
+        txtSenha = new PasswordField();
+        txtSenha.setPromptText("Senha (min. 6 caracteres)");
         txtSenha.setEditable(mainApp.isAdmin());
         txtSenha.setVisible(mainApp.isAdmin());
         txtSenha.setManaged(mainApp.isAdmin());
@@ -324,7 +326,8 @@ public class AlunosView {
         btnFechar.setStyle("-fx-background-color: transparent; -fx-text-fill: #718096; -fx-cursor: hand;");
         btnFechar.setOnAction(e -> fecharPaineis());
 
-        Region spH = new Region(); HBox.setHgrow(spH, Priority.ALWAYS);
+        Region spH = new Region();
+        HBox.setHgrow(spH, Priority.ALWAYS);
         HBox hdr = new HBox(12, lblTit, spH, btnFechar);
         hdr.setAlignment(Pos.CENTER_LEFT);
         hdr.setPadding(new Insets(14, 16, 12, 20));
@@ -334,9 +337,10 @@ public class AlunosView {
         VBox form = new VBox(10);
         form.setPadding(new Insets(16, 20, 12, 20));
 
-        Label lblDica = new Label(
-                "Cole os nomes, um por linha.\nO e-mail será gerado automaticamente: " +
-                        "analaura@oficina.com\nDuplicatas viram: analaura2@oficina.com");
+        Label lblDica = new Label("""
+                Cole os nomes, um por linha.
+                O e-mail será gerado automaticamente: analaura@oficina.com
+                Duplicatas viram: analaura2@oficina.com""");
         lblDica.setStyle("-fx-text-fill: #718096; -fx-font-size: 12px; " +
                 "-fx-background-color: #f7fafc; -fx-padding: 8 10; -fx-background-radius: 6;");
         lblDica.setWrapText(true);
@@ -399,7 +403,7 @@ public class AlunosView {
         Label lblPreviewTit = new Label("Preview dos cadastros");
         lblPreviewTit.setStyle("-fx-font-weight: bold; -fx-text-fill: #2d3748; -fx-font-size: 12px;");
 
-        tabelaPreview = new TableView<>();
+        TableView<AlunoLote> tabelaPreview = new TableView<>();
         tabelaPreview.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         tabelaPreview.setItems(previewDados);
         tabelaPreview.setPlaceholder(new Label("Clique em Pré-visualizar acima."));
@@ -411,16 +415,20 @@ public class AlunosView {
         TableColumn<AlunoLote, String> cEmail = new TableColumn<>("E-mail gerado");
         cEmail.setCellValueFactory(cd -> new SimpleStringProperty(cd.getValue().email));
 
-        tabelaPreview.getColumns().addAll(cNome, cEmail);
+        tabelaPreview.getColumns().addAll(List.of(cNome, cEmail));
 
         // Colorir linhas com conflito
         tabelaPreview.setRowFactory(tv -> new TableRow<>() {
-            @Override protected void updateItem(AlunoLote item, boolean empty) {
+            @Override
+            protected void updateItem(AlunoLote item, boolean empty) {
                 super.updateItem(item, empty);
-                if (empty || item == null) { setStyle(""); return; }
-                setStyle(item.conflito.get()
-                        ? "-fx-background-color: #fff5f5;"  // rosa = e-mail já existe
-                        : "-fx-background-color: #f0fff4;"); // verde = ok
+                if (empty || item == null) {
+                    setStyle("");
+                    return;
+                }
+                // Resolvemos a cor primeiro para evitar o aviso do IntelliJ
+                String corFundo = item.conflito.get() ? "#fff5f5" : "#f0fff4";
+                setStyle("-fx-background-color: " + corFundo + ";");
             }
         });
 
@@ -456,12 +464,18 @@ public class AlunosView {
         alunoSelecionado = null;
         lblNomeAluno.setText("Novo Aluno");
         btnSalvar.setText("Cadastrar Aluno");
-        txtNome.clear(); txtEmail.clear(); txtSenha.clear();
-        txtEmail.setEditable(true); txtEmail.setDisable(false);
+        txtNome.clear();
+        txtEmail.clear();
+        txtSenha.clear();
+        txtEmail.setEditable(true);
+        txtEmail.setDisable(false);
         cbEscola.getItems().setAll(escolasDAO.listarTodas());
-        cbTurma.getItems().clear(); cbTurma.setDisable(true);
-        lblDetalheInfo.setVisible(false); lblDetalheInfo.setManaged(false);
-        btnVerTurma.setVisible(false); btnVerTurma.setManaged(false);
+        cbTurma.getItems().clear();
+        cbTurma.setDisable(true);
+        lblDetalheInfo.setVisible(false);
+        lblDetalheInfo.setManaged(false);
+        btnVerTurma.setVisible(false);
+        btnVerTurma.setManaged(false);
         mostrarDetalhe();
     }
 
@@ -473,11 +487,13 @@ public class AlunosView {
 
         lblDetalheInfo.setText("Matrícula Atual:\nEscola: " + aluno.getEscolaNome()
                 + "\nTurma: " + aluno.getTurmaNome());
-        lblDetalheInfo.setVisible(true); lblDetalheInfo.setManaged(true);
+        lblDetalheInfo.setVisible(true);
+        lblDetalheInfo.setManaged(true);
 
         txtNome.setText(aluno.getNome());
         txtEmail.setText(aluno.getEmail());
-        txtEmail.setEditable(false); txtEmail.setDisable(true);
+        txtEmail.setEditable(false);
+        txtEmail.setDisable(true);
         if (mainApp.isAdmin()) txtSenha.setText(aluno.getSenha());
 
         cbEscola.getItems().setAll(escolasDAO.listarTodas());
@@ -492,19 +508,21 @@ public class AlunosView {
                     .filter(t -> t.getId().equals(aluno.getTurmaId()))
                     .findFirst().ifPresent(cbTurma::setValue);
         } else {
-            cbTurma.getItems().clear(); cbTurma.setDisable(true);
+            cbTurma.getItems().clear();
+            cbTurma.setDisable(true);
         }
 
-        btnVerTurma.setVisible(true); btnVerTurma.setManaged(true);
+        btnVerTurma.setVisible(true);
+        btnVerTurma.setManaged(true);
         btnVerTurma.setOnAction(ev -> mainApp.abrirTurmas(null));
         mostrarDetalhe();
     }
 
     private void cadastrar() {
-        String nome  = txtNome.getText().trim();
+        String nome = txtNome.getText().trim();
         String email = txtEmail.getText().trim();
         String senha = txtSenha.getText();
-        Turma  turma = cbTurma.getValue();
+        Turma turma = cbTurma.getValue();
 
         if (nome.isBlank() || email.isBlank() || senha.length() < 6 || turma == null) {
             mainApp.mostrarAviso("Preencha tudo e selecione uma turma (Senha min. 6).", true);
@@ -516,8 +534,11 @@ public class AlunosView {
             if (novoId != null) {
                 if (alunoDAO.inserir(novoId, nome, email, senha, turma.getId())) {
                     mainApp.mostrarAviso("Aluno cadastrado com sucesso!", false);
-                    txtNome.clear(); txtEmail.clear(); txtSenha.clear();
-                    carregarDados(); fecharPaineis();
+                    txtNome.clear();
+                    txtEmail.clear();
+                    txtSenha.clear();
+                    carregarDados();
+                    fecharPaineis();
                 } else {
                     SupabaseAuthDAO.deletarUsuarioAuth(novoId);
                     mainApp.mostrarAviso("Erro de banco de dados. Tente novamente.", true);
@@ -528,8 +549,11 @@ public class AlunosView {
         } else {
             if (alunoDAO.atualizar(alunoSelecionado.getId(), nome, email, senha, turma.getId())) {
                 mainApp.mostrarAviso("Aluno atualizado com sucesso!", false);
-                txtNome.clear(); txtEmail.clear(); txtSenha.clear();
-                carregarDados(); fecharPaineis();
+                txtNome.clear();
+                txtEmail.clear();
+                txtSenha.clear();
+                carregarDados();
+                fecharPaineis();
             } else {
                 mainApp.mostrarAviso("Erro ao atualizar aluno.", true);
             }
@@ -543,14 +567,19 @@ public class AlunosView {
     private void abrirPainelLote() {
         fecharPaineis();
         cbEscolaLote.getItems().setAll(escolasDAO.listarTodas());
-        cbTurmaLote.getItems().clear(); cbTurmaLote.setDisable(true);
-        txtNomesLote.clear(); txtSenhaLote.clear();
+        cbTurmaLote.getItems().clear();
+        cbTurmaLote.setDisable(true);
+        txtNomesLote.clear();
+        txtSenhaLote.clear();
         previewDados.clear();
         lblStatusLote.setText("");
-        painelLote.setVisible(true); painelLote.setManaged(true);
+        painelLote.setVisible(true);
+        painelLote.setManaged(true);
     }
 
-    /** Gera a lista de preview com e-mails deduplicated. */
+    /**
+     * Gera a lista de preview com e-mails deduplicated.
+     */
     private void gerarPreview() {
         previewDados.clear();
         lblStatusLote.setText("");
@@ -576,9 +605,9 @@ public class AlunosView {
             String nome = linha.trim();
             if (nome.isBlank()) continue;
 
-            String base  = emailBase(nome);
+            String base = emailBase(nome);
             String email = base + "@oficina.com";
-            int    sufixo = 2;
+            int sufixo = 2;
             // Evita colisão tanto com existentes quanto com outros do mesmo lote
             while (emailsExistentes.contains(email) || emailsLote.contains(email)) {
                 email = base + sufixo + "@oficina.com";
@@ -596,7 +625,9 @@ public class AlunosView {
                 + "Linhas em verde = novos  |  Rosa = e-mail já existia (será ajustado automaticamente).");
     }
 
-    /** Converte nome em base de e-mail: "Ana Laura Ferreira" → "analauraferreira" */
+    /**
+     * Converte nome em base de e-mail: "Ana Laura Ferreira" → "analauraferreira"
+     */
     private static String emailBase(String nome) {
         // Normaliza acentos (NFD → remove diacríticos → ASCII)
         String normalizado = Normalizer.normalize(nome, Normalizer.Form.NFD);
@@ -608,21 +639,25 @@ public class AlunosView {
                 .replaceAll("\\s+", "");
     }
 
-    /** Cadastra o lote após confirmação. */
+    /**
+     * Cadastra o lote após confirmação.
+     */
     private void cadastrarLote(Button btnConfirmar) {
         if (previewDados.isEmpty()) {
             mainApp.mostrarAviso("Gere o preview primeiro.", true);
             return;
         }
 
-        Turma  turma = cbTurmaLote.getValue();
+        Turma turma = cbTurmaLote.getValue();
         String senha = txtSenhaLote.getText();
 
         if (turma == null) {
-            mainApp.mostrarAviso("Selecione a turma de destino.", true); return;
+            mainApp.mostrarAviso("Selecione a turma de destino.", true);
+            return;
         }
         if (senha.length() < 6) {
-            mainApp.mostrarAviso("Senha padrão deve ter no mínimo 6 caracteres.", true); return;
+            mainApp.mostrarAviso("Senha padrão deve ter no mínimo 6 caracteres.", true);
+            return;
         }
 
         // Confirma com o usuário
@@ -638,9 +673,9 @@ public class AlunosView {
         btnConfirmar.setDisable(true);
         btnConfirmar.setText("Cadastrando…");
 
-        final List<AlunoLote> lista   = List.copyOf(previewDados);
-        final String          turmaId = turma.getId();
-        final String          senhaFinal = senha;
+        final List<AlunoLote> lista = List.copyOf(previewDados);
+        final String turmaId = turma.getId();
+        final String senhaFinal = senha;
 
         new Thread(() -> {
             int ok = 0, erros = 0;
@@ -657,7 +692,7 @@ public class AlunosView {
                     erros++;
                 }
             }
-            final int finalOk    = ok;
+            final int finalOk = ok;
             final int finalErros = erros;
             Platform.runLater(() -> {
                 btnConfirmar.setDisable(false);
@@ -679,19 +714,22 @@ public class AlunosView {
     // ═════════════════════════════════════════════════════════════════════════
 
     private void mostrarDetalhe() {
-        painelDetalhe.setVisible(true); painelDetalhe.setManaged(true);
+        painelDetalhe.setVisible(true);
+        painelDetalhe.setManaged(true);
     }
 
     private void fecharPaineis() {
-        painelDetalhe.setVisible(false); painelDetalhe.setManaged(false);
-        painelLote.setVisible(false);    painelLote.setManaged(false);
+        painelDetalhe.setVisible(false);
+        painelDetalhe.setManaged(false);
+        painelLote.setVisible(false);
+        painelLote.setManaged(false);
         tabela.getSelectionModel().clearSelection();
         alunoSelecionado = null;
     }
 
     private void carregarDados() {
         if (mainApp.isAdmin()) dados.setAll(alunoDAO.listarTodos());
-        else                   dados.setAll(alunoDAO.listarPorProfessor(mainApp.getSessao().getId()));
+        else dados.setAll(alunoDAO.listarPorProfessor(mainApp.getSessao().getId()));
     }
 
     private Label campo(String texto) {
@@ -702,36 +740,46 @@ public class AlunosView {
 
     private ListCell<Escola> celulaEscola() {
         return new ListCell<>() {
-            @Override protected void updateItem(Escola e, boolean empty) {
+            @Override
+            protected void updateItem(Escola e, boolean empty) {
                 super.updateItem(e, empty);
                 setText(empty || e == null ? null : e.getNome());
             }
         };
     }
+
     private ListCell<Escola> celulaEscolaBtn(String placeholder) {
         return new ListCell<>() {
-            @Override protected void updateItem(Escola e, boolean empty) {
+            @Override
+            protected void updateItem(Escola e, boolean empty) {
                 super.updateItem(e, empty);
                 setText(empty || e == null ? placeholder : e.getNome());
             }
         };
     }
+
     private ListCell<Turma> celulaTurma() {
         return new ListCell<>() {
-            @Override protected void updateItem(Turma t, boolean empty) {
+            @Override
+            protected void updateItem(Turma t, boolean empty) {
                 super.updateItem(t, empty);
                 setText(empty || t == null ? null : t.getNome());
             }
         };
     }
+
     private ListCell<Turma> celulaTurmaBtn(String placeholder) {
         return new ListCell<>() {
-            @Override protected void updateItem(Turma t, boolean empty) {
+            @Override
+            protected void updateItem(Turma t, boolean empty) {
                 super.updateItem(t, empty);
                 setText(empty || t == null ? placeholder : t.getNome());
             }
         };
     }
 
-    public BorderPane getView() { return view; }
+    public BorderPane getView() {
+        return view;
+    }
+
 }
